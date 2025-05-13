@@ -61,7 +61,7 @@ async def register(
         await send_verification_email(db_user.email, verification_token)
     
     # Send welcome email
-    await send_welcome_email(db_user.email, f"{db_user.first_name} {db_user.last_name}")
+    # await send_welcome_email(db_user.email, f"{db_user.first_name} {db_user.last_name}")
     
     return db_user
 

@@ -14,7 +14,12 @@ services:
     depends_on:
       - mongodb
     networks:
+      - product-network
       - microservice-network
+    environment:
+      - USER_SERVICE_URL=http://user-service:8003/api/v1
+      - INVENTORY_SERVICE_URL=http://inventory-service:8002/api/v1
+      - ORDER_SERVICE_URL=http://order-service:8001/api/v1
 
   mongodb:
     image: mongo:5.0
@@ -23,11 +28,13 @@ services:
     volumes:
       - mongodb_data:/data/db
     networks:
-      - microservice-network
+      - product-network
 
 networks:
-  microservice-network:
+  product-network:
     driver: bridge
+  microservice-network:
+    external: true  # Changed from driver: bridge to external: true
 
 volumes:
   mongodb_data:
