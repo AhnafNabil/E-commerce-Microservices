@@ -90,12 +90,6 @@ An order contains:
 - Shipping address
 - Payment information
 
-## Testing
-
-```bash
-pytest
-```
-
 ## Docker Compose
 
 The included docker-compose.yml file sets up:
