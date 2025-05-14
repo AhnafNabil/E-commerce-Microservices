@@ -12,21 +12,21 @@ services:
     env_file:
       - .env
     depends_on:
-      - postgres
+      - postgres-user
     networks:
       - user-network
       - microservice-network
 
-  postgres:
+  postgres-user:
     image: postgres:13
-    ports:
-      - "5433:5432"  # Use a different port to avoid conflicts
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=user_db
+    ports:
+      - "5433:5432"  # Use a different port to avoid conflicts
+    volumes:
+      - postgres_user_data:/var/lib/postgresql/data
     networks:
       - user-network
 
@@ -37,4 +37,4 @@ networks:
     external: true  # Connect to the existing microservice network
 
 volumes:
-  postgres_data:
+  postgres_user_data:

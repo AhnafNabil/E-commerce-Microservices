@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from typing import Optional, Union
+from typing import Optional
 
 from app.db.postgresql import get_db
 from app.models.user import User, TokenData
@@ -18,17 +18,13 @@ oauth2_scheme = OAuth2PasswordBearer(
 
 
 async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
-    """
-    Get a user by email address.
-    """
+    """Get a user by email address."""
     result = await db.execute(select(User).where(User.email == email))
     return result.scalars().first()
 
 
 async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
-    """
-    Get a user by ID.
-    """
+    """Get a user by ID."""
     result = await db.execute(select(User).where(User.id == user_id))
     return result.scalars().first()
 
@@ -37,9 +33,7 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db)
 ) -> User:
-    """
-    Get the current authenticated user based on the JWT token.
-    """
+    """Get the current authenticated user based on the JWT token."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -73,49 +67,3 @@ async def get_current_user(
         )
     
     return user
-
-
-async def get_current_active_user(
-    current_user: User = Depends(get_current_user)
-) -> User:
-    """
-    Get the current active user.
-    """
-    if not current_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user"
-        )
-    return current_user
-
-
-async def get_current_verified_user(
-    current_user: User = Depends(get_current_active_user)
-) -> User:
-    """
-    Get the current active and verified user.
-    """
-    # Skip verification check if feature is disabled
-    if not settings.ENABLE_EMAIL_VERIFICATION:
-        return current_user
-    
-    if not current_user.is_email_verified:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Email not verified"
-        )
-    return current_user
-
-
-def get_current_admin(
-    current_user: User = Depends(get_current_active_user)
-) -> User:
-    """
-    Get the current admin user.
-    """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
-    return current_user

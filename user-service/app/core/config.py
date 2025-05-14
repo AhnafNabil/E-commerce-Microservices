@@ -1,7 +1,7 @@
 import os
-from typing import Optional, List
+from typing import Optional
 
-from pydantic import BaseSettings, AnyHttpUrl, EmailStr, validator, PostgresDsn
+from pydantic import BaseSettings, validator, PostgresDsn
 
 
 class Settings(BaseSettings):
@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api/v1"
     DEBUG: bool = False
     PROJECT_NAME: str = "User Service"
-    PORT: int = 8000
+    PORT: int = 8003
     
     # Database settings
     DATABASE_URL: PostgresDsn
@@ -23,33 +23,6 @@ class Settings(BaseSettings):
     # Security
     SECURITY_PASSWORD_SALT: str
     SECURITY_PASSWORD_HASH: str = "bcrypt"
-    
-    # Email settings
-    MAIL_SERVER: str
-    MAIL_PORT: int = 587
-    MAIL_USERNAME: str
-    MAIL_PASSWORD: str
-    MAIL_FROM: EmailStr
-    MAIL_TLS: bool = True
-    MAIL_SSL: bool = False
-    MAIL_FROM_NAME: str
-    
-    # URL settings
-    VERIFY_EMAIL_URL: AnyHttpUrl
-    RESET_PASSWORD_URL: AnyHttpUrl
-    
-    # Feature flags
-    ENABLE_EMAIL_VERIFICATION: bool = False
-    
-    # User roles
-    USER_ROLES: List[str] = ["user", "admin"]
-    
-    # Validate URLs are properly formatted
-    @validator("VERIFY_EMAIL_URL", "RESET_PASSWORD_URL", pre=True)
-    def validate_urls(cls, v):
-        if isinstance(v, str) and not v.startswith(("http://", "https://")):
-            return f"http://{v}"
-        return v
     
     class Config:
         env_file = ".env"

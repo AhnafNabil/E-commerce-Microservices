@@ -6,28 +6,22 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
-# Password context for hashing and verifying passwords
+# Password context for hashing and verifying
 pwd_context = CryptContext(schemes=[settings.SECURITY_PASSWORD_HASH], deprecated="auto")
 
 
 def get_password_hash(password: str) -> str:
-    """
-    Hash a password for storing.
-    """
+    """Hash a password for storing."""
     return pwd_context.hash(password + settings.SECURITY_PASSWORD_SALT)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """
-    Verify a stored password against a provided password.
-    """
+    """Verify a stored password against a provided password."""
     return pwd_context.verify(plain_password + settings.SECURITY_PASSWORD_SALT, hashed_password)
 
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
-    """
-    Create a JWT access token.
-    """
+    """Create a JWT access token."""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -44,9 +38,7 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
 
 
 def create_refresh_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
-    """
-    Create a JWT refresh token.
-    """
+    """Create a JWT refresh token."""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -62,40 +54,8 @@ def create_refresh_token(data: Dict[str, Any], expires_delta: Optional[timedelta
     return encoded_jwt
 
 
-def create_email_verification_token(email: str) -> str:
-    """
-    Create a JWT token for email verification.
-    """
-    expire = datetime.utcnow() + timedelta(days=3)  # Email verification valid for 3 days
-    to_encode = {"exp": expire, "sub": email, "type": "email_verification"}
-    
-    encoded_jwt = jwt.encode(
-        to_encode, 
-        settings.JWT_SECRET_KEY, 
-        algorithm=settings.JWT_ALGORITHM
-    )
-    return encoded_jwt
-
-
-def create_password_reset_token(email: str) -> str:
-    """
-    Create a JWT token for password reset.
-    """
-    expire = datetime.utcnow() + timedelta(hours=24)  # Password reset valid for 24 hours
-    to_encode = {"exp": expire, "sub": email, "type": "password_reset"}
-    
-    encoded_jwt = jwt.encode(
-        to_encode, 
-        settings.JWT_SECRET_KEY, 
-        algorithm=settings.JWT_ALGORITHM
-    )
-    return encoded_jwt
-
-
 def verify_token(token: str, token_type: str) -> Optional[Dict[str, Any]]:
-    """
-    Verify a JWT token and return its payload.
-    """
+    """Verify a JWT token and return its payload."""
     try:
         payload = jwt.decode(
             token, 

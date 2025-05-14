@@ -1,5 +1,4 @@
 import logging
-from functools import lru_cache
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -13,7 +12,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("user-service")
 
-# Convert the synchronous postgres URL to async
+# Convert synchronous postgres URL to async
 DATABASE_URL = str(settings.DATABASE_URL)
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
@@ -56,9 +55,3 @@ async def get_db():
             yield session
         finally:
             await session.close()
-
-
-@lru_cache()
-def get_settings():
-    """Return cached settings object."""
-    return settings

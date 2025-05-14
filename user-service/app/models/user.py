@@ -1,23 +1,15 @@
-from sqlalchemy import Boolean, Column, String, Integer, DateTime, ForeignKey, Enum, UniqueConstraint, text
+from sqlalchemy import Boolean, Column, String, Integer, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-import enum
 from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field, constr, validator
 from typing import Optional, List, Any
 import re
 
 from app.db.postgresql import Base
-from app.core.config import settings
 
 
 # SQLAlchemy Models
-class UserRole(str, enum.Enum):
-    """Enum for user roles."""
-    USER = "user"
-    ADMIN = "admin"
-
-
 class User(Base):
     """Database model for users."""
     __tablename__ = "users"
@@ -28,9 +20,7 @@ class User(Base):
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
     phone = Column(String, nullable=True)
-    role = Column(String, nullable=False, default=UserRole.USER)
     is_active = Column(Boolean, nullable=False, default=True)
-    is_email_verified = Column(Boolean, nullable=False, default=False)
     
     # When user was created and last updated
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -162,20 +152,12 @@ class UserChangePassword(BaseModel):
 class UserResponse(UserBase):
     """Model for user response including ID."""
     id: int
-    role: str
     is_active: bool
-    is_email_verified: bool
     created_at: datetime
     addresses: List[AddressResponse] = []
     
     class Config:
         orm_mode = True
-
-
-class UserVerify(BaseModel):
-    """Model for verifying a user by ID."""
-    user_id: int
-    is_active: bool = True
 
 
 class TokenPayload(BaseModel):
@@ -195,32 +177,3 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     """Model for token data."""
     user_id: Optional[int] = None
-    email: Optional[EmailStr] = None
-    role: Optional[str] = None
-
-
-class PasswordResetRequest(BaseModel):
-    """Model for requesting a password reset."""
-    email: EmailStr
-
-
-class PasswordReset(BaseModel):
-    """Model for resetting a password."""
-    token: str
-    new_password: constr(min_length=8)
-    
-    @validator('new_password')
-    def password_strength(cls, v):
-        """Validate password strength."""
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-        if not re.search(r'[0-9]', v):
-            raise ValueError('Password must contain at least one digit')
-        return v
-
-
-class EmailVerification(BaseModel):
-    """Model for email verification."""
-    token: str

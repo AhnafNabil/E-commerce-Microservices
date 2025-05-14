@@ -6,19 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from typing import Any, Dict
 
-from app.db.postgresql import get_db
-from app.models.user import (
-    User, UserCreate, UserResponse, Token,
-    PasswordResetRequest, PasswordReset, EmailVerification
-)
-from app.core.security import (
-    get_password_hash, verify_password, create_access_token,
-    create_refresh_token, verify_token, create_password_reset_token,
-    create_email_verification_token
-)
-from app.core.email import send_verification_email, send_password_reset_email, send_welcome_email
-from app.api.dependencies import get_user_by_email
 from app.core.config import settings
+from app.db.postgresql import get_db
+from app.models.user import User, UserCreate, UserResponse, Token
+from app.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token, verify_token
+from app.api.dependencies import get_user_by_email
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 logger = logging.getLogger(__name__)
@@ -48,22 +40,26 @@ async def register(
         first_name=user_create.first_name,
         last_name=user_create.last_name,
         phone=user_create.phone,
-        is_email_verified=not settings.ENABLE_EMAIL_VERIFICATION  # Set to True if verification disabled
+        is_active=True
     )
     
     db.add(db_user)
     await db.commit()
     await db.refresh(db_user)
     
-    # Send verification email if enabled
-    if settings.ENABLE_EMAIL_VERIFICATION:
-        verification_token = create_email_verification_token(db_user.email)
-        await send_verification_email(db_user.email, verification_token)
+    # Manually construct response to avoid lazy loading issues
+    response = UserResponse(
+        id=db_user.id,
+        email=db_user.email,
+        first_name=db_user.first_name,
+        last_name=db_user.last_name,
+        phone=db_user.phone,
+        is_active=db_user.is_active,
+        created_at=db_user.created_at,
+        addresses=[]
+    )
     
-    # Send welcome email
-    # await send_welcome_email(db_user.email, f"{db_user.first_name} {db_user.last_name}")
-    
-    return db_user
+    return response
 
 
 @router.post("/login", response_model=Token)
@@ -93,13 +89,6 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Inactive user",
-        )
-    
-    # If email verification is required and user is not verified
-    if settings.ENABLE_EMAIL_VERIFICATION and not user.is_email_verified:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Email not verified. Please check your email for verification link.",
         )
     
     # Create tokens
@@ -176,104 +165,3 @@ async def refresh_token(
         "refresh_token": new_refresh_token,
         "token_type": "bearer",
     }
-
-
-@router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
-async def forgot_password(
-    reset_request: PasswordResetRequest,
-    db: AsyncSession = Depends(get_db)
-) -> Dict[str, str]:
-    """
-    Request a password reset.
-    """
-    user = await get_user_by_email(db, reset_request.email)
-    
-    # Always return success to prevent email enumeration
-    if not user or not user.is_active:
-        return {"message": "If your email is registered, you will receive a password reset link"}
-    
-    # Generate token and send email
-    reset_token = create_password_reset_token(user.email)
-    email_sent = await send_password_reset_email(user.email, reset_token)
-    
-    if not email_sent:
-        logger.error(f"Failed to send password reset email to {user.email}")
-    
-    return {"message": "If your email is registered, you will receive a password reset link"}
-
-
-@router.post("/reset-password", status_code=status.HTTP_200_OK)
-async def reset_password(
-    reset_data: PasswordReset,
-    db: AsyncSession = Depends(get_db)
-) -> Dict[str, str]:
-    """
-    Reset the password using the token from email.
-    """
-    # Verify token
-    payload = verify_token(reset_data.token, "password_reset")
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired token",
-        )
-    
-    email = payload.get("sub")
-    if not email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid token payload",
-        )
-    
-    # Find user
-    user = await get_user_by_email(db, email)
-    if not user or not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User not found or inactive",
-        )
-    
-    # Update password
-    user.hashed_password = get_password_hash(reset_data.new_password)
-    await db.commit()
-    
-    return {"message": "Password has been reset successfully"}
-
-
-@router.post("/verify-email", status_code=status.HTTP_200_OK)
-async def verify_email(
-    verification_data: EmailVerification,
-    db: AsyncSession = Depends(get_db)
-) -> Dict[str, str]:
-    """
-    Verify user's email address.
-    """
-    # Verify token
-    payload = verify_token(verification_data.token, "email_verification")
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired token",
-        )
-    
-    email = payload.get("sub")
-    if not email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid token payload",
-        )
-    
-    # Find user
-    user = await get_user_by_email(db, email)
-    if not user or not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User not found or inactive",
-        )
-    
-    # Update verification status
-    if not user.is_email_verified:
-        user.is_email_verified = True
-        await db.commit()
-    
-    return {"message": "Email has been verified successfully"}
