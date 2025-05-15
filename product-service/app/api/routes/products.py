@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Body, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 from typing import List, Optional, Dict, Any
@@ -6,6 +6,7 @@ import logging
 
 from app.models.product import ProductCreate, ProductResponse, ProductUpdate, PyObjectId
 from app.api.dependencies import get_current_user, get_db
+from app.services.inventory_service import inventory_service
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ async def create_product(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
-    Create a new product.
+    Create a new product and automatically create inventory for it.
     """
     product_dict = product.dict()
     
@@ -29,6 +30,23 @@ async def create_product(
     created_product = await db["products"].find_one({"_id": result.inserted_id})
     
     logger.info(f"Created product: {result.inserted_id}")
+    
+    # Automatically create inventory for the new product
+    try:
+        # Use the product's quantity as the initial inventory
+        inventory_created = await inventory_service.create_inventory(
+            product_id=str(result.inserted_id),
+            initial_quantity=product.quantity,
+            reorder_threshold=max(5, int(product.quantity * 0.1))  # 10% of quantity or at least 5
+        )
+        
+        if not inventory_created:
+            logger.warning(f"Failed to create inventory for product {result.inserted_id}")
+            # Note: We're still returning the product even if inventory creation failed
+            # In a production system, you might want to handle this differently
+    except Exception as e:
+        logger.error(f"Error creating inventory for product {result.inserted_id}: {str(e)}")
+    
     return created_product
 
 
