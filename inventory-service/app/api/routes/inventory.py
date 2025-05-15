@@ -106,6 +106,30 @@ async def get_inventory_items(
     
     return items
 
+@router.get("/check", response_model=Dict[str, Any])
+async def check_inventory(
+    product_id: str = Query(..., description="Product ID to check"),
+    quantity: int = Query(..., gt=0, description="Quantity to check"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Check if a product has sufficient available inventory.
+    """
+    query = select(InventoryItem).where(InventoryItem.product_id == product_id)
+    result = await db.execute(query)
+    item = result.scalars().first()
+    
+    if not item:
+        return {"available": False, "message": f"Product {product_id} not found in inventory"}
+    
+    is_available = item.available_quantity >= quantity
+    
+    return {
+        "available": is_available,
+        "current_quantity": item.available_quantity,
+        "requested_quantity": quantity,
+        "product_id": product_id
+    }
 
 @router.get("/{product_id}", response_model=InventoryItemResponse)
 async def get_inventory_item(
@@ -196,32 +220,6 @@ async def update_inventory_item(
     
     logger.info(f"Updated inventory for product {product_id}")
     return updated_item
-
-
-@router.get("/check", response_model=Dict[str, Any])
-async def check_inventory(
-    product_id: str = Query(..., description="Product ID to check"),
-    quantity: int = Query(..., gt=0, description="Quantity to check"),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Check if a product has sufficient available inventory.
-    """
-    query = select(InventoryItem).where(InventoryItem.product_id == product_id)
-    result = await db.execute(query)
-    item = result.scalars().first()
-    
-    if not item:
-        return {"available": False, "message": f"Product {product_id} not found in inventory"}
-    
-    is_available = item.available_quantity >= quantity
-    
-    return {
-        "available": is_available,
-        "current_quantity": item.available_quantity,
-        "requested_quantity": quantity,
-        "product_id": product_id
-    }
 
 
 @router.post("/reserve", response_model=Dict[str, Any])

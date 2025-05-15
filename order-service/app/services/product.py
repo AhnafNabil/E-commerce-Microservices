@@ -47,12 +47,12 @@ class ProductServiceClient:
             return None
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(1))
-    async def verify_products(self, items: List[Dict]) -> bool:
+    async def verify_products(self, items: List) -> bool:
         """
         Verify that all products in an order exist and have valid prices.
         
         Args:
-            items: List of items with product_id, quantity, and price
+            items: List of OrderItem objects with product_id, quantity, and price
             
         Returns:
             bool: True if all products are valid, False otherwise
@@ -60,8 +60,9 @@ class ProductServiceClient:
         logger.info(f"Verifying {len(items)} products")
         
         for item in items:
-            product_id = item.get("product_id")
-            price = Decimal(str(item.get("price")))
+            # Fix: Access attributes directly instead of using .get()
+            product_id = item.product_id
+            price = Decimal(str(item.price))
             
             product = await self.get_product(product_id)
             if not product:

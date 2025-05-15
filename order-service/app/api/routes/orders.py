@@ -1,3 +1,5 @@
+import logging
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Body, status
 from fastapi.responses import JSONResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -86,9 +88,19 @@ async def create_order(
     
     # Create the order
     now = datetime.utcnow()
+    
+    # Convert order items to dictionary format, explicitly converting Decimal to float
+    items_dict = []
+    for item in order.items:
+        items_dict.append({
+            "product_id": item.product_id,
+            "quantity": item.quantity,
+            "price": float(item.price)  # Convert Decimal to float for MongoDB
+        })
+    
     order_dict = {
         "user_id": order.user_id,
-        "items": [item.dict() for item in order.items],
+        "items": items_dict,
         "total_price": float(total_price),  # Convert Decimal to float for MongoDB
         "status": settings.ORDER_STATUS["PENDING"],
         "shipping_address": order.shipping_address.dict(),
