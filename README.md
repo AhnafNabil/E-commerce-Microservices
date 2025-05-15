@@ -2,6 +2,22 @@
 
 This documentation provides a comprehensive guide for testing the complete workflow of the integrated E-commerce Microservices system. With our product-inventory integration, creating products now automatically creates inventory records, simplifying the testing process.
 
+## Run the Application
+
+Run the application using docker compose:
+
+```bash
+docker-compose up --build -d
+```
+
+## Install `jq`
+
+Install `jq` to make JSON output more readable in the terminal:
+
+```bash
+apt-get update && apt-get install -y jq
+```
+
 ## Overview of Testing Flow
 
 1. User Registration and Authentication
@@ -28,7 +44,7 @@ curl -X POST "http://localhost/api/v1/auth/register" \
     "first_name": "Example",
     "last_name": "Customer",
     "phone": "555-123-4567"
-  }'
+  }' | jq .
 ```
 
 Expected response:
@@ -50,7 +66,7 @@ Expected response:
 ```bash
 curl -X POST "http://localhost/api/v1/auth/login" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=customer@example.com&password=Password123"
+  -d "username=customer@example.com&password=Password123" | jq .
 ```
 
 Expected response:
@@ -72,7 +88,7 @@ TOKEN="eyJhbGciOiJS..."  # Replace with the actual token from the response
 
 ```bash
 curl -X GET "http://localhost/api/v1/users/me" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
 Expected response:
@@ -105,7 +121,7 @@ curl -X POST "http://localhost/api/v1/users/me/addresses" \
     "postal_code": "12345",
     "country": "Example Country",
     "is_default": true
-  }'
+  }' | jq .
 ```
 
 Expected response:
@@ -138,7 +154,7 @@ curl -X POST "http://localhost/api/v1/products/" \
     "category": "Electronics",
     "price": 899.99,
     "quantity": 50
-  }'
+  }' | jq .
 ```
 
 Expected response (save the `_id` for later use):
@@ -169,7 +185,7 @@ curl -X POST "http://localhost/api/v1/products/" \
     "category": "Audio",
     "price": 249.99,
     "quantity": 100
-  }'
+  }' | jq .
 ```
 
 Expected response:
@@ -200,7 +216,7 @@ curl -X POST "http://localhost/api/v1/products/" \
     "category": "Wearables",
     "price": 179.99,
     "quantity": 75
-  }'
+  }' | jq .
 ```
 
 Expected response:
@@ -227,7 +243,7 @@ Now, let's browse products and verify that inventory was automatically created.
 
 ```bash
 curl -X GET "http://localhost/api/v1/products/" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
 Expected response:
@@ -266,7 +282,7 @@ Check inventory for Product 1:
 
 ```bash
 curl -X GET "http://localhost/api/v1/inventory/$PRODUCT_ID_1" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
 Expected response:
@@ -286,7 +302,7 @@ Check inventory for Product 2:
 
 ```bash
 curl -X GET "http://localhost/api/v1/inventory/$PRODUCT_ID_2" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
 Expected response:
@@ -306,7 +322,7 @@ Expected response:
 
 ```bash
 curl -X GET "http://localhost/api/v1/products/?category=Electronics" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
 Expected response:
@@ -327,7 +343,7 @@ Expected response:
 
 ```bash
 curl -X GET "http://localhost/api/v1/products/?min_price=100&max_price=300" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
 Expected response:
@@ -362,7 +378,33 @@ First, we need to get the user's ID:
 
 ```bash
 curl -X GET "http://localhost/api/v1/users/me" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $TOKEN" | jq .
+```
+
+Expected response:
+
+```json
+{
+  "email": "customer@example.com",
+  "first_name": "Example",
+  "last_name": "Customer",
+  "phone": "555-123-4567",
+  "id": 1,
+  "is_active": true,
+  "created_at": "2025-05-15T14:56:27.118728+00:00",
+  "addresses": [
+    {
+      "line1": "123 Example Street",
+      "line2": "Apt 4B",
+      "city": "Example City",
+      "state": "EX",
+      "postal_code": "12345",
+      "country": "Example Country",
+      "is_default": true,
+      "id": 1
+    }
+  ]
+}
 ```
 
 From the response, save the user ID:
@@ -394,7 +436,7 @@ curl -X POST "http://localhost/api/v1/orders/" \
       "postal_code": "12345",
       "country": "Example Country"
     }
-  }'
+  }' | jq .
 ```
 
 Expected response (save the `_id` for later use):
@@ -456,7 +498,7 @@ curl -X POST "http://localhost/api/v1/orders/" \
       "postal_code": "12345",
       "country": "Example Country"
     }
-  }'
+  }' | jq .
 ```
 
 Expected response:
@@ -503,7 +545,7 @@ Now, let's view and manage the orders.
 
 ```bash
 curl -X GET "http://localhost/api/v1/orders/$ORDER_ID_1" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
 Expected response:
@@ -537,7 +579,7 @@ Expected response:
 
 ```bash
 curl -X GET "http://localhost/api/v1/orders/" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
 Expected response:
@@ -605,7 +647,7 @@ curl -X PUT "http://localhost/api/v1/orders/$ORDER_ID_1/status" \
   -H "Content-Type: application/json" \
   -d '{
     "status": "paid"
-  }'
+  }' | jq .
 ```
 
 Expected response:
@@ -646,7 +688,7 @@ This should return a 204 No Content status with no response body. Now let's veri
 
 ```bash
 curl -X GET "http://localhost/api/v1/orders/$ORDER_ID_2" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
 Expected response:
@@ -687,7 +729,7 @@ Let's check the inventory for Product 1 after placing an order:
 
 ```bash
 curl -X GET "http://localhost/api/v1/inventory/$PRODUCT_ID_1" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
 Expected response:
@@ -707,7 +749,7 @@ And check inventory for Product 2 after cancelling an order:
 
 ```bash
 curl -X GET "http://localhost/api/v1/inventory/$PRODUCT_ID_2" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
 Expected response:
