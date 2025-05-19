@@ -2,6 +2,10 @@
 
 This documentation provides a comprehensive guide for testing the complete workflow of the integrated E-commerce Microservices system. With our product-inventory integration, creating products now automatically creates inventory records, simplifying the testing process.
 
+## System Architecture
+
+![alt text](./images/E-commerce%20Arch.svg)
+
 ## Run the Application
 
 Run the application using docker compose:
