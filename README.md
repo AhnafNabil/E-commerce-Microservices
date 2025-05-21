@@ -6,16 +6,6 @@ This documentation provides a comprehensive guide for testing the complete workf
 
 ![alt text](./images/E-commerce%20Arch.svg)
 
-The architecture includes separate microservices for:
-
-**User Service:** Handles user registration, authentication and profile management.
-
-**Product Service:** Manages product creation, updates, and retrieval.
-
-**Inventory Service:** Keeps track of product stock levels and availability.
-
-**Order Service:** Manages order creation, processing, and tracking.
-
 ## Run the Application
 
 Run the application using docker compose:
@@ -23,8 +13,6 @@ Run the application using docker compose:
 ```bash
 docker-compose up --build -d
 ```
-
-This command builds and starts all microservices and their dependencies, such as databases.
 
 ## Install `jq`
 
@@ -43,12 +31,7 @@ apt-get update && apt-get install -y jq
 5. Placing Orders
 6. Viewing Order Details
 
-Each step is tested via REST API calls using curl, simulating realistic user actions.
-
 Let's begin testing each component of the system.
-
-
-# User_Service: 
 
 ## 1. User Registration and Authentication
 
@@ -127,7 +110,6 @@ Expected response:
 ```
 
 ## 2. Adding User Address
-This is demonstrated for profile management, meaning users can update their profile data and see the changes.
 
 Next, we'll add a shipping address for the user.
 
@@ -160,27 +142,9 @@ Expected response:
 }
 ```
 
-
-**So far, the user service is mostly complete**, including:
-
-* ✅ **User registration & login**
-* ✅ **Token-based authentication**
-* ✅ **Fetching user profile**
-* ✅ **Updating profile info**
-* ✅ **Adding user address(es)**
-
-These cover the **core user-related features**. Now you can move forward to **Product Service**.
-
-# Product_Service: 
-
 ## 3. Creating Products with Automatic Inventory
-First of all, only when the user's role is admin, they will be allowed to perform actions related to the product service.
 
-Now, as a example we'll create three different products. Because of our integration, inventory records will be automatically created for each product. Here, 
-
-Integration: The system is connected so that when a product is created, the inventory is automatically set up.
-
-Inventory record: A stock entry is created to track how many items are available for that product.
+Now, we'll create three different products. Because of our integration, inventory records will be automatically created for each product.
 
 ### Step 3.1: Create Product 1 - Smartphone
 
@@ -317,8 +281,6 @@ Expected response:
 ```
 
 ### Step 4.2: Verify Inventory Was Created For Products
-During product creation, the PRODUCT_IDs were saved — that's why we can use it now to check their corresponding inventory. Like as: `PRODUCT_ID_1`, `PRODUCT_ID_2`, `PRODUCT_ID_3` etc. And, We can filter the products by their **category** and **price range**.
-
 
 Check inventory for Product 1:
 
@@ -409,22 +371,10 @@ Expected response:
   }
 ]
 ```
-So, the Product Service is now complete with the following modules:
-
-**Admin can create products** with name, category, price, quantity.
-* **Inventory is auto-created** for each product.
-* **Users can view all products.**
-* **Check inventory** using `PRODUCT_ID`.
-* **Filter products** by category and price range.
-
-
-
-# Order_Service: 
 
 ## 5. Placing Orders
 
-This demonstrates the functionalities of the Order Service. Here, if the user's role from the User Service is 'user' (not 'admin'), only then they will be able to perform Order Service operations.
-Now, let's place orders:
+Now, let's place orders.
 
 ### Step 5.1: Get User ID
 
@@ -489,7 +439,8 @@ curl -X POST "http://localhost/api/v1/orders/" \
       "state": "EX",
       "postal_code": "12345",
       "country": "Example Country"
-    }' | jq .
+    }
+  }' | jq .
 ```
 
 Expected response (save the `_id` for later use):
@@ -550,7 +501,8 @@ curl -X POST "http://localhost/api/v1/orders/" \
       "state": "EX",
       "postal_code": "12345",
       "country": "Example Country"
-    }' | jq .
+    }
+  }' | jq .
 ```
 
 Expected response:
@@ -590,8 +542,6 @@ ORDER_ID_2="order_id_2"  # Replace with the actual ID from the response
 ```
 
 ## 6. Viewing and Managing Orders
-
-In the previous step, the IDs of the ordered products were saved in ORDER_ID. Now, we'll use those to view all the details of the order. In this section, the order status can be changed.
 
 Now, let's view and manage the orders.
 
@@ -731,8 +681,6 @@ Expected response:
 }
 ```
 
-Here, The order status will change from pending to paid.
-
 ### Step 6.4: Cancel an Order
 
 ```bash
@@ -779,8 +727,6 @@ Expected response:
 }
 ```
 
-Here, The order status will change from pending to cancelled.
-
 ### Step 6.5: Check Inventory After Order Operations
 
 Let's check the inventory for Product 1 after placing an order:
@@ -822,9 +768,6 @@ Expected response:
   "updated_at": "2025-05-15T12:05:00.123456+00:00"
 }
 ```
-
-Because **product_id_1** was ordered, its quantity decreased by one, and since **product_id_2** was canceled, its quantity remains the same as before.
-
 
 ## 7. Verifying the Complete Workflow
 
