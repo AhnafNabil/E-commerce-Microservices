@@ -11,12 +11,22 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
     depends_on:
-      - product-service
-      - order-service
-      - inventory-service
-      - user-service
+      product-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
     networks:
       - microservice-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # Product Service and its database
   product-service:
@@ -30,9 +40,19 @@ services:
     env_file:
       - ./product-service/.env
     depends_on:
-      - mongodb-product
+      mongodb-product:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
     networks:
       - microservice-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   mongodb-product:
     image: mongo:5.0
@@ -42,6 +62,12 @@ services:
       - microservice-network
     environment:
       - MONGO_INITDB_DATABASE=product_db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # Order Service and its database
   order-service:
@@ -57,9 +83,23 @@ services:
     env_file:
       - ./order-service/.env
     depends_on:
-      - mongodb-order
+      mongodb-order:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
     networks:
       - microservice-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   mongodb-order:
     image: mongo:5.0
@@ -69,6 +109,12 @@ services:
       - microservice-network
     environment:
       - MONGO_INITDB_DATABASE=order_db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # Inventory Service and its database
   inventory-service:
@@ -83,9 +129,17 @@ services:
     env_file:
       - ./inventory-service/.env
     depends_on:
-      - postgres-inventory
+      postgres-inventory:
+        condition: service_healthy
     networks:
       - microservice-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8002/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   postgres-inventory:
     image: postgres:13
@@ -97,6 +151,12 @@ services:
       - postgres_inventory_data:/var/lib/postgresql/data
     networks:
       - microservice-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d inventory_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   # User Service and its database
   user-service:
@@ -110,9 +170,17 @@ services:
     env_file:
       - ./user-service/.env
     depends_on:
-      - postgres-user
+      postgres-user:
+        condition: service_healthy
     networks:
       - microservice-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8003/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   postgres-user:
     image: postgres:13
@@ -124,6 +192,12 @@ services:
       - postgres_user_data:/var/lib/postgresql/data
     networks:
       - microservice-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d user_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
 networks:
   microservice-network:
