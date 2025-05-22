@@ -11,22 +11,12 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
     depends_on:
-      product-service:
-        condition: service_healthy
-      order-service:
-        condition: service_healthy
-      inventory-service:
-        condition: service_healthy
-      user-service:
-        condition: service_healthy
+      - product-service
+      - order-service
+      - inventory-service
+      - user-service
     networks:
       - microservice-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
   # Product Service and its database
   product-service:
@@ -41,8 +31,6 @@ services:
       - ./product-service/.env
     depends_on:
       mongodb-product:
-        condition: service_healthy
-      inventory-service:
         condition: service_healthy
     networks:
       - microservice-network
@@ -62,8 +50,9 @@ services:
       - microservice-network
     environment:
       - MONGO_INITDB_DATABASE=product_db
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -85,12 +74,6 @@ services:
     depends_on:
       mongodb-order:
         condition: service_healthy
-      user-service:
-        condition: service_healthy
-      product-service:
-        condition: service_healthy
-      inventory-service:
-        condition: service_healthy
     networks:
       - microservice-network
     restart: unless-stopped
@@ -109,8 +92,9 @@ services:
       - microservice-network
     environment:
       - MONGO_INITDB_DATABASE=order_db
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -151,11 +135,12 @@ services:
       - postgres_inventory_data:/var/lib/postgresql/data
     networks:
       - microservice-network
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d inventory_db"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
       start_period: 30s
 
   # User Service and its database
@@ -192,11 +177,12 @@ services:
       - postgres_user_data:/var/lib/postgresql/data
     networks:
       - microservice-network
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d user_db"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
       start_period: 30s
 
 networks:
