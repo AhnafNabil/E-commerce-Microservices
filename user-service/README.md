@@ -2,7 +2,7 @@
 
 The User Service is a FastAPI-based microservice responsible for user management, authentication, and authorization using JWT tokens and PostgreSQL as the database.
 
-![alt text](../images/User-service.svg)
+![alt text](../images/user-service.svg)
 
 ## **Project Structure**
 
