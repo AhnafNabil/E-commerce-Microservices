@@ -2,7 +2,7 @@
 
 The User Service is a FastAPI-based microservice responsible for user management, authentication, and authorization using JWT tokens and PostgreSQL as the database.
 
-![alt text](../images/user-service.svg)
+![alt text](../images/User-service.svg)
 
 ## **Project Structure**
 
@@ -353,5 +353,3 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003"]
 - **Dependencies**: Installs system packages (build-essential, libpq-dev)
 - **App**: Copies requirements → installs → copies app code
 - **Runtime**: Uvicorn server on port 8003
-
-This User Service provides a complete authentication and user management solution with robust security features, proper data modeling, and clean API design suitable for a microservices architecture.
