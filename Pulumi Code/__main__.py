@@ -3,12 +3,12 @@ import pulumi_aws as aws
 
 # Configuration
 config = pulumi.Config()
-git_repo_url = "https://github.com/AhnafNabil/E-commerce-Microservices-AWS.git"  # Replace with your public Git repository URL
+git_repo_url = "https://github.com/AhnafNabil/E-commerce-Microservices-AWS.git"
 region = "ap-southeast-1"
 availability_zones = ["ap-southeast-1a", "ap-southeast-1b"]
-ami_id = "ami-01811d4912b4ccb26"  # Ubuntu 20.04 LTS in ap-southeast-1 (update if needed)
+ami_id = "ami-01811d4912b4ccb26"
 
-# Mailtrap credentials - Replace with your actual credentials
+# Mailtrap credentials
 smtp_user = "8f17fc1a376da4"
 smtp_password = "afb5060d93cdaf"
 
@@ -16,7 +16,7 @@ smtp_password = "afb5060d93cdaf"
 base_user_data = """#!/bin/bash
 # Update system and install dependencies
 apt-get update -y
-apt-get install -y docker.io git curl netcat-openbsd jq
+apt-get install -y docker.io git curl netcat-openbsd jq awscli
 
 # Setup Docker
 systemctl start docker
@@ -47,8 +47,7 @@ database_user_data = base_user_data + """
 echo "Database instance private IP: $(hostname -I | awk '{print $1}')"
 
 # Run database setup
-cd /home/ubuntu/ecommerce
-cd deploy/aws
+cd /home/ubuntu/ecommerce/deploy/aws
 chmod +x deploy.sh
 chmod +x scripts/*.sh
 sudo -u ubuntu bash deploy.sh database
@@ -59,8 +58,7 @@ messaging_user_data = base_user_data + """
 echo "Messaging instance private IP: $(hostname -I | awk '{print $1}')"
 
 # Run messaging setup
-cd /home/ubuntu/ecommerce
-cd deploy/aws
+cd /home/ubuntu/ecommerce/deploy/aws
 chmod +x deploy.sh
 chmod +x scripts/*.sh
 sudo -u ubuntu bash deploy.sh messaging
@@ -177,8 +175,8 @@ nginx_sg = aws.ec2.SecurityGroup("ecommerce-nginx-sg",
     description="Security group for Nginx gateway instance",
     ingress=[
         {"protocol": "tcp", "from_port": 22, "to_port": 22, "cidr_blocks": ["0.0.0.0/0"]},
-        {"protocol": "tcp", "from_port": 80, "to_port": 80, "cidr_blocks": ["0.0.0.0/0"]},  # HTTP
-        {"protocol": "tcp", "from_port": 443, "to_port": 443, "cidr_blocks": ["0.0.0.0/0"]}  # HTTPS
+        {"protocol": "tcp", "from_port": 80, "to_port": 80, "cidr_blocks": ["0.0.0.0/0"]},
+        {"protocol": "tcp", "from_port": 443, "to_port": 443, "cidr_blocks": ["0.0.0.0/0"]}
     ],
     egress=[
         {"protocol": "-1", "from_port": 0, "to_port": 0, "cidr_blocks": ["0.0.0.0/0"]}
@@ -190,12 +188,12 @@ microservices_sg = aws.ec2.SecurityGroup("ecommerce-microservices-sg",
     vpc_id=vpc.id,
     description="Security group for microservices instance",
     ingress=[
-        {"protocol": "tcp", "from_port": 22, "to_port": 22, "cidr_blocks": ["0.0.0.0/0"]},  # SSH
-        {"protocol": "tcp", "from_port": 8000, "to_port": 8004, "security_groups": [nginx_sg.id]},  # Microservices ports from Nginx
-        {"protocol": "tcp", "from_port": 8082, "to_port": 8082, "security_groups": [nginx_sg.id]}  # Kafka UI
+        {"protocol": "tcp", "from_port": 22, "to_port": 22, "cidr_blocks": ["0.0.0.0/0"]},
+        {"protocol": "tcp", "from_port": 8000, "to_port": 8004, "security_groups": [nginx_sg.id]},
+        {"protocol": "tcp", "from_port": 8082, "to_port": 8082, "security_groups": [nginx_sg.id]}
     ],
     egress=[
-        {"protocol": "-1", "from_port": 0, "to_port": 0, "cidr_blocks": ["0.0.0.0/0"]}  # Allow all outbound
+        {"protocol": "-1", "from_port": 0, "to_port": 0, "cidr_blocks": ["0.0.0.0/0"]}
     ],
     tags={"Name": "ecommerce-microservices-sg"}
 )
@@ -204,9 +202,9 @@ database_sg = aws.ec2.SecurityGroup("ecommerce-database-sg",
     vpc_id=vpc.id,
     description="Security group for database instance",
     ingress=[
-        {"protocol": "tcp", "from_port": 22, "to_port": 22, "cidr_blocks": ["0.0.0.0/0"]},  # SSH
-        {"protocol": "tcp", "from_port": 27017, "to_port": 27018, "security_groups": [microservices_sg.id]},  # MongoDB from Microservices
-        {"protocol": "tcp", "from_port": 5432, "to_port": 5434, "security_groups": [microservices_sg.id]}  # PostgreSQL from Microservices
+        {"protocol": "tcp", "from_port": 22, "to_port": 22, "cidr_blocks": ["0.0.0.0/0"]},
+        {"protocol": "tcp", "from_port": 27017, "to_port": 27018, "security_groups": [microservices_sg.id]},
+        {"protocol": "tcp", "from_port": 5432, "to_port": 5434, "security_groups": [microservices_sg.id]}
     ],
     egress=[
         {"protocol": "-1", "from_port": 0, "to_port": 0, "cidr_blocks": ["0.0.0.0/0"]}
@@ -218,13 +216,13 @@ messaging_sg = aws.ec2.SecurityGroup("ecommerce-messaging-sg",
     vpc_id=vpc.id,
     description="Security group for messaging systems",
     ingress=[
-        {"protocol": "tcp", "from_port": 22, "to_port": 22, "cidr_blocks": ["0.0.0.0/0"]},  # SSH
-        {"protocol": "tcp", "from_port": 5672, "to_port": 5672, "security_groups": [microservices_sg.id]},  # RabbitMQ
-        {"protocol": "tcp", "from_port": 15672, "to_port": 15672, "security_groups": [microservices_sg.id]},  # RabbitMQ Management
-        {"protocol": "tcp", "from_port": 9092, "to_port": 9092, "security_groups": [microservices_sg.id]},  # Kafka External
-        {"protocol": "tcp", "from_port": 29092, "to_port": 29092, "security_groups": [microservices_sg.id]},  # Kafka Internal
-        {"protocol": "tcp", "from_port": 2181, "to_port": 2181, "security_groups": [microservices_sg.id]},  # Zookeeper
-        {"protocol": "tcp", "from_port": 6379, "to_port": 6379, "security_groups": [microservices_sg.id]}  # Redis
+        {"protocol": "tcp", "from_port": 22, "to_port": 22, "cidr_blocks": ["0.0.0.0/0"]},
+        {"protocol": "tcp", "from_port": 5672, "to_port": 5672, "security_groups": [microservices_sg.id]},
+        {"protocol": "tcp", "from_port": 15672, "to_port": 15672, "security_groups": [microservices_sg.id]},
+        {"protocol": "tcp", "from_port": 9092, "to_port": 9092, "security_groups": [microservices_sg.id]},
+        {"protocol": "tcp", "from_port": 29092, "to_port": 29092, "security_groups": [microservices_sg.id]},
+        {"protocol": "tcp", "from_port": 2181, "to_port": 2181, "security_groups": [microservices_sg.id]},
+        {"protocol": "tcp", "from_port": 6379, "to_port": 6379, "security_groups": [microservices_sg.id]}
     ],
     egress=[
         {"protocol": "-1", "from_port": 0, "to_port": 0, "cidr_blocks": ["0.0.0.0/0"]}
@@ -232,7 +230,7 @@ messaging_sg = aws.ec2.SecurityGroup("ecommerce-messaging-sg",
     tags={"Name": "ecommerce-messaging-sg"}
 )
 
-# Create Database Instance with NAT Gateway dependency
+# Create Database Instance
 database_instance = aws.ec2.Instance("ecommerce-database",
     instance_type="t2.micro",
     vpc_security_group_ids=[database_sg.id],
@@ -258,7 +256,7 @@ database_instance = aws.ec2.Instance("ecommerce-database",
     ])
 )
 
-# Create Messaging Instance with NAT Gateway dependency
+# Create Messaging Instance
 messaging_instance = aws.ec2.Instance("ecommerce-messaging",
     instance_type="t2.micro",
     vpc_security_group_ids=[messaging_sg.id],
@@ -284,11 +282,14 @@ messaging_instance = aws.ec2.Instance("ecommerce-messaging",
     ])
 )
 
-# Now define the microservices user data with the database and messaging IPs
-microservices_user_data = base_user_data + f"""
-# Export essential environment variables
-export DATABASE_HOST="{database_instance.private_ip}"
-export MESSAGING_HOST="{messaging_instance.private_ip}"
+# ✅ FIXED: Properly handle Pulumi Outputs using .apply()
+microservices_user_data = pulumi.Output.all(
+    database_instance.private_ip,
+    messaging_instance.private_ip
+).apply(lambda args: base_user_data + f"""
+# Export essential environment variables - REAL IPs NOW!
+export DATABASE_HOST="{args[0]}"
+export MESSAGING_HOST="{args[1]}"
 export SMTP_USER="{smtp_user}"
 export SMTP_PASSWORD="{smtp_password}"
 
@@ -296,21 +297,31 @@ export SMTP_PASSWORD="{smtp_password}"
 echo "DATABASE_HOST set to: $DATABASE_HOST"
 echo "MESSAGING_HOST set to: $MESSAGING_HOST"
 echo "SMTP_USER set to: $SMTP_USER"
-echo "SMTP_PASSWORD set to: $SMTP_PASSWORD"
 
 # Add database and messaging hosts to /etc/hosts for easier access
-echo "{database_instance.private_ip} database-host" | tee -a /etc/hosts
-echo "{messaging_instance.private_ip} messaging-host" | tee -a /etc/hosts
+echo "{args[0]} database-host" | tee -a /etc/hosts
+echo "{args[1]} messaging-host" | tee -a /etc/hosts
 
-# Run microservices setup with credentials
-cd /home/ubuntu/ecommerce
-cd deploy/aws
+# Create environment file for persistence
+cat > /home/ubuntu/service_ips.env << 'EOF'
+export DATABASE_HOST="{args[0]}"
+export MESSAGING_HOST="{args[1]}"
+export SMTP_USER="{smtp_user}"
+export SMTP_PASSWORD="{smtp_password}"
+EOF
+chown ubuntu:ubuntu /home/ubuntu/service_ips.env
+
+# Wait for other instances to be fully ready
+sleep 180
+
+# Run microservices setup with explicit environment variables
+cd /home/ubuntu/ecommerce/deploy/aws
 chmod +x deploy.sh
 chmod +x scripts/*.sh
-sudo -u ubuntu -E bash deploy.sh microservices
-"""
+sudo -u ubuntu -E DATABASE_HOST="{args[0]}" MESSAGING_HOST="{args[1]}" SMTP_USER="{smtp_user}" SMTP_PASSWORD="{smtp_password}" bash deploy.sh microservices
+""")
 
-# Create Microservices Instance (depends on database and messaging)
+# Create Microservices Instance
 microservices_instance = aws.ec2.Instance("ecommerce-microservices",
     instance_type="t2.micro",
     vpc_security_group_ids=[microservices_sg.id],
@@ -330,33 +341,36 @@ microservices_instance = aws.ec2.Instance("ecommerce-microservices",
         "Environment": "Testing",
         "Project": "EcommerceMicroservices"
     },
-    # Add explicit dependency to ensure database and messaging are created first
     opts=pulumi.ResourceOptions(depends_on=[
         database_instance,
         messaging_instance
     ])
 )
 
-# Update nginx user data to include microservices IP
-nginx_user_data_updated = base_user_data + f"""
+# ✅ FIXED: Nginx user data with proper Output handling
+nginx_user_data_updated = microservices_instance.private_ip.apply(
+    lambda microservices_ip: base_user_data + f"""
 # Export microservices host for nginx configuration
-export MICROSERVICES_HOST="{microservices_instance.private_ip}"
+export MICROSERVICES_HOST="{microservices_ip}"
 
 # Debug output
 echo "MICROSERVICES_HOST set to: $MICROSERVICES_HOST"
 
 # Add microservices host to /etc/hosts
-echo "{microservices_instance.private_ip} microservices-host" | tee -a /etc/hosts
+echo "{microservices_ip} microservices-host" | tee -a /etc/hosts
+
+# Wait for microservices to be ready
+sleep 240
 
 # Run nginx setup
-cd /home/ubuntu/ecommerce
-cd deploy/aws
+cd /home/ubuntu/ecommerce/deploy/aws
 chmod +x deploy.sh
 chmod +x scripts/*.sh
-sudo -u ubuntu -E bash deploy.sh nginx
+sudo -u ubuntu -E MICROSERVICES_HOST="{microservices_ip}" bash deploy.sh nginx
 """
+)
 
-# Create Nginx Instance (depends on microservices)
+# Create Nginx Instance
 nginx_instance = aws.ec2.Instance("ecommerce-nginx",
     instance_type="t2.micro",
     vpc_security_group_ids=[nginx_sg.id],
@@ -376,7 +390,6 @@ nginx_instance = aws.ec2.Instance("ecommerce-nginx",
         "Environment": "Testing",
         "Project": "EcommerceMicroservices"
     },
-    # Add explicit dependency to ensure microservices is created first
     opts=pulumi.ResourceOptions(depends_on=[
         microservices_instance
     ])
