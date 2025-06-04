@@ -3,14 +3,14 @@ import pulumi_aws as aws
 
 # Configuration
 config = pulumi.Config()
-git_repo_url = "https://github.com/poridhioss/E-commerce-Microservices-with-Kafka.git"  # Replace with your public Git repository URL
+git_repo_url = "https://github.com/AhnafNabil/E-commerce-Microservices-AWS.git"  # Replace with your public Git repository URL
 region = "ap-southeast-1"
 availability_zones = ["ap-southeast-1a", "ap-southeast-1b"]
 ami_id = "ami-01811d4912b4ccb26"  # Ubuntu 20.04 LTS in ap-southeast-1 (update if needed)
 
 # Mailtrap credentials - Replace with your actual credentials
-smtp_user = "your_mailtrap_username"
-smtp_password = "your_mailtrap_password"
+smtp_user = "8f17fc1a376da4"
+smtp_password = "afb5060d93cdaf"
 
 # Base user data script with common functions
 base_user_data = """#!/bin/bash
@@ -43,6 +43,9 @@ chown -R ubuntu:ubuntu /home/ubuntu/ecommerce
 
 # Instance-specific user data scripts
 database_user_data = base_user_data + """
+# Output private IP for debugging
+echo "Database instance private IP: $(hostname -I | awk '{print $1}')"
+
 # Run database setup
 cd /home/ubuntu/ecommerce
 cd deploy/aws
@@ -52,34 +55,15 @@ sudo -u ubuntu bash deploy.sh database
 """
 
 messaging_user_data = base_user_data + """
+# Output private IP for debugging
+echo "Messaging instance private IP: $(hostname -I | awk '{print $1}')"
+
 # Run messaging setup
 cd /home/ubuntu/ecommerce
 cd deploy/aws
 chmod +x deploy.sh
 chmod +x scripts/*.sh
 sudo -u ubuntu bash deploy.sh messaging
-"""
-
-microservices_user_data = base_user_data + """
-# Export Mailtrap credentials as environment variables
-export SMTP_USER="{smtp_user}"
-export SMTP_PASSWORD="{smtp_password}"
-
-# Run microservices setup with credentials
-cd /home/ubuntu/ecommerce
-cd deploy/aws
-chmod +x deploy.sh
-chmod +x scripts/*.sh
-sudo -u ubuntu -E bash deploy.sh microservices
-"""
-
-nginx_user_data = base_user_data + """
-# Run nginx setup
-cd /home/ubuntu/ecommerce
-cd deploy/aws
-chmod +x deploy.sh
-chmod +x scripts/*.sh
-sudo -u ubuntu bash deploy.sh nginx
 """
 
 # Create a VPC
@@ -248,7 +232,7 @@ messaging_sg = aws.ec2.SecurityGroup("ecommerce-messaging-sg",
     tags={"Name": "ecommerce-messaging-sg"}
 )
 
-# Create EC2 Instances
+# Create Database Instance with NAT Gateway dependency
 database_instance = aws.ec2.Instance("ecommerce-database",
     instance_type="t2.micro",
     vpc_security_group_ids=[database_sg.id],
@@ -256,7 +240,7 @@ database_instance = aws.ec2.Instance("ecommerce-database",
     subnet_id=private_subnet_1.id,
     key_name="EcommerceKeyPair",
     root_block_device={
-        "volume_size": 10,  # Slightly increased for database storage
+        "volume_size": 10,
         "volume_type": "gp2"
     },
     user_data=database_user_data,
@@ -266,9 +250,15 @@ database_instance = aws.ec2.Instance("ecommerce-database",
         "Type": "database",
         "Environment": "Testing",
         "Project": "EcommerceMicroservices"
-    }
+    },
+    opts=pulumi.ResourceOptions(depends_on=[
+        nat_gateway,
+        private_route,
+        private_rt_assoc_1
+    ])
 )
 
+# Create Messaging Instance with NAT Gateway dependency
 messaging_instance = aws.ec2.Instance("ecommerce-messaging",
     instance_type="t2.micro",
     vpc_security_group_ids=[messaging_sg.id],
@@ -276,7 +266,7 @@ messaging_instance = aws.ec2.Instance("ecommerce-messaging",
     subnet_id=private_subnet_2.id,
     key_name="EcommerceKeyPair",
     root_block_device={
-        "volume_size": 10,  # Slightly increased for message persistence
+        "volume_size": 10,
         "volume_type": "gp2"
     },
     user_data=messaging_user_data,
@@ -286,9 +276,41 @@ messaging_instance = aws.ec2.Instance("ecommerce-messaging",
         "Type": "messaging",
         "Environment": "Testing",
         "Project": "EcommerceMicroservices"
-    }
+    },
+    opts=pulumi.ResourceOptions(depends_on=[
+        nat_gateway,
+        private_route,
+        private_rt_assoc_2
+    ])
 )
 
+# Now define the microservices user data with the database and messaging IPs
+microservices_user_data = base_user_data + f"""
+# Export essential environment variables
+export DATABASE_HOST="{database_instance.private_ip}"
+export MESSAGING_HOST="{messaging_instance.private_ip}"
+export SMTP_USER="{smtp_user}"
+export SMTP_PASSWORD="{smtp_password}"
+
+# Debug output to verify variables
+echo "DATABASE_HOST set to: $DATABASE_HOST"
+echo "MESSAGING_HOST set to: $MESSAGING_HOST"
+echo "SMTP_USER set to: $SMTP_USER"
+echo "SMTP_PASSWORD set to: $SMTP_PASSWORD"
+
+# Add database and messaging hosts to /etc/hosts for easier access
+echo "{database_instance.private_ip} database-host" | tee -a /etc/hosts
+echo "{messaging_instance.private_ip} messaging-host" | tee -a /etc/hosts
+
+# Run microservices setup with credentials
+cd /home/ubuntu/ecommerce
+cd deploy/aws
+chmod +x deploy.sh
+chmod +x scripts/*.sh
+sudo -u ubuntu -E bash deploy.sh microservices
+"""
+
+# Create Microservices Instance (depends on database and messaging)
 microservices_instance = aws.ec2.Instance("ecommerce-microservices",
     instance_type="t2.micro",
     vpc_security_group_ids=[microservices_sg.id],
@@ -297,7 +319,7 @@ microservices_instance = aws.ec2.Instance("ecommerce-microservices",
     key_name="EcommerceKeyPair",
     associate_public_ip_address=True,
     root_block_device={
-        "volume_size": 10,  # Slightly increased for multiple services
+        "volume_size": 10,
         "volume_type": "gp2"
     },
     user_data=microservices_user_data,
@@ -307,9 +329,34 @@ microservices_instance = aws.ec2.Instance("ecommerce-microservices",
         "Type": "microservices",
         "Environment": "Testing",
         "Project": "EcommerceMicroservices"
-    }
+    },
+    # Add explicit dependency to ensure database and messaging are created first
+    opts=pulumi.ResourceOptions(depends_on=[
+        database_instance,
+        messaging_instance
+    ])
 )
 
+# Update nginx user data to include microservices IP
+nginx_user_data_updated = base_user_data + f"""
+# Export microservices host for nginx configuration
+export MICROSERVICES_HOST="{microservices_instance.private_ip}"
+
+# Debug output
+echo "MICROSERVICES_HOST set to: $MICROSERVICES_HOST"
+
+# Add microservices host to /etc/hosts
+echo "{microservices_instance.private_ip} microservices-host" | tee -a /etc/hosts
+
+# Run nginx setup
+cd /home/ubuntu/ecommerce
+cd deploy/aws
+chmod +x deploy.sh
+chmod +x scripts/*.sh
+sudo -u ubuntu -E bash deploy.sh nginx
+"""
+
+# Create Nginx Instance (depends on microservices)
 nginx_instance = aws.ec2.Instance("ecommerce-nginx",
     instance_type="t2.micro",
     vpc_security_group_ids=[nginx_sg.id],
@@ -321,14 +368,18 @@ nginx_instance = aws.ec2.Instance("ecommerce-nginx",
         "volume_size": 8,
         "volume_type": "gp2"
     },
-    user_data=nginx_user_data,
+    user_data=nginx_user_data_updated,
     user_data_replace_on_change=True,
     tags={
         "Name": "ecommerce-nginx",
         "Type": "nginx",
         "Environment": "Testing",
         "Project": "EcommerceMicroservices"
-    }
+    },
+    # Add explicit dependency to ensure microservices is created first
+    opts=pulumi.ResourceOptions(depends_on=[
+        microservices_instance
+    ])
 )
 
 # Create an Elastic IP for Nginx
