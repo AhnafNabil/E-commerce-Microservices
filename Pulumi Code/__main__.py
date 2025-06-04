@@ -284,13 +284,17 @@ messaging_instance = aws.ec2.Instance("ecommerce-messaging",
     ])
 )
 
-# Now define the microservices user data with the database and messaging IPs
+# FIXED: Microservices user data with proper environment variable handling
 microservices_user_data = base_user_data + f"""
-# Export essential environment variables
-export DATABASE_HOST="{database_instance.private_ip}"
-export MESSAGING_HOST="{messaging_instance.private_ip}"
+# Export essential environment variables - FIXED
+export DATABASE_HOST_ENV="{database_instance.private_ip}"
+export MESSAGING_HOST_ENV="{messaging_instance.private_ip}"
 export SMTP_USER="{smtp_user}"
 export SMTP_PASSWORD="{smtp_password}"
+
+# ALSO set them as traditional env vars for backward compatibility
+export DATABASE_HOST="{database_instance.private_ip}"
+export MESSAGING_HOST="{messaging_instance.private_ip}"
 
 # Debug output to verify variables
 echo "DATABASE_HOST set to: $DATABASE_HOST"
@@ -302,11 +306,17 @@ echo "SMTP_PASSWORD set to: $SMTP_PASSWORD"
 echo "{database_instance.private_ip} database-host" | tee -a /etc/hosts
 echo "{messaging_instance.private_ip} messaging-host" | tee -a /etc/hosts
 
-# Run microservices setup with credentials
+# FIXED: Pass environment variables to the script
 cd /home/ubuntu/ecommerce
 cd deploy/aws
 chmod +x deploy.sh
 chmod +x scripts/*.sh
+
+# Run with explicit environment variables
+DATABASE_HOST_ENV="{database_instance.private_ip}" \
+MESSAGING_HOST_ENV="{messaging_instance.private_ip}" \
+SMTP_USER="{smtp_user}" \
+SMTP_PASSWORD="{smtp_password}" \
 sudo -u ubuntu -E bash deploy.sh microservices
 """
 

@@ -47,29 +47,91 @@ wait_for_service() {
   return 0
 }
 
-# Replace placeholders in a file
+# FIXED: Enhanced replace_placeholders function
 replace_placeholders() {
-  local file=$1
-  local output=$2
+  local input_file=$1
+  local output_file=$2
   shift 2
   
+  log "Processing template: $input_file -> $output_file" "$YELLOW"
+  
+  # Validate input file exists
+  if [[ ! -f "$input_file" ]]; then
+    log "Error: Input file $input_file does not exist" "$RED"
+    return 1
+  fi
+  
   # Create a copy of the input file
-  cp $file $output
+  cp "$input_file" "$output_file"
   
   # Process each key-value pair
   while [[ $# -gt 0 ]]; do
-    local key=$1
+    local placeholder=$1
     local value=$2
     shift 2
     
-    # Replace placeholder with value
-    sed -i "s|\${$key}|$value|g" $output
+    log "Replacing ${placeholder}_PLACEHOLDER with: $value" "$YELLOW"
+    
+    # Replace placeholder with value using more robust sed
+    if [[ -n "$value" ]]; then
+      sed -i "s|${placeholder}_PLACEHOLDER|${value}|g" "$output_file"
+    else
+      log "Warning: Empty value for placeholder $placeholder" "$YELLOW"
+    fi
   done
+  
+  # Verify replacements were successful
+  if grep -q "_PLACEHOLDER" "$output_file"; then
+    log "Warning: Some placeholders were not replaced in $output_file:" "$YELLOW"
+    grep "_PLACEHOLDER" "$output_file"
+  else
+    log "All placeholders successfully replaced in $output_file" "$GREEN"
+  fi
+}
+
+# ALTERNATIVE: Direct environment variable replacement function
+replace_env_vars() {
+  local input_file=$1
+  local output_file=$2
+  
+  log "Processing environment template: $input_file -> $output_file" "$YELLOW"
+  
+  # Use envsubst to replace environment variables
+  if command_exists envsubst; then
+    envsubst < "$input_file" > "$output_file"
+    log "Environment variables replaced using envsubst" "$GREEN"
+  else
+    # Fallback to manual replacement
+    cp "$input_file" "$output_file"
+    
+    # Replace common patterns
+    if [[ -n "$DATABASE_HOST" ]]; then
+      sed -i "s|\${DATABASE_HOST}|${DATABASE_HOST}|g" "$output_file"
+    fi
+    if [[ -n "$MESSAGING_HOST" ]]; then
+      sed -i "s|\${MESSAGING_HOST}|${MESSAGING_HOST}|g" "$output_file"
+    fi
+    if [[ -n "$SMTP_USER" ]]; then
+      sed -i "s|\${SMTP_USER}|${SMTP_USER}|g" "$output_file"
+    fi
+    if [[ -n "$SMTP_PASSWORD" ]]; then
+      sed -i "s|\${SMTP_PASSWORD}|${SMTP_PASSWORD}|g" "$output_file"
+    fi
+    
+    log "Environment variables replaced manually" "$GREEN"
+  fi
+  
+  # Verify no unresolved variables remain
+  if grep -q '\${' "$output_file"; then
+    log "Warning: Unresolved environment variables found:" "$YELLOW"
+    grep '\${' "$output_file"
+  fi
 }
 
 # Get private IP of another instance by Name tag
-get_instance_ip_by_name() {
-  local instance_name=$1
+get_instance_ip_by_tag() {
+  local tag_key=$1
+  local tag_value=$2
   
   # Check if AWS CLI is available
   if ! command_exists aws; then
@@ -79,12 +141,12 @@ get_instance_ip_by_name() {
   
   # Get the instance private IP using AWS CLI
   local instance_ip=$(aws ec2 describe-instances \
-    --filters "Name=tag:Name,Values=$instance_name" "Name=instance-state-name,Values=running" \
+    --filters "Name=tag:${tag_key},Values=${tag_value}" "Name=instance-state-name,Values=running" \
     --query "Reservations[0].Instances[0].PrivateIpAddress" \
     --output text --region $(curl -s http://169.254.169.254/latest/meta-data/placement/region))
   
   if [[ "$instance_ip" == "None" || -z "$instance_ip" ]]; then
-    log "Could not find instance with name: $instance_name" "$RED"
+    log "Could not find instance with ${tag_key}: ${tag_value}" "$RED"
     return 1
   fi
   
