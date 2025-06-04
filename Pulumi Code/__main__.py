@@ -382,13 +382,6 @@ nginx_instance = aws.ec2.Instance("ecommerce-nginx",
     ])
 )
 
-# Create an Elastic IP for Nginx
-nginx_eip = aws.ec2.Eip("ecommerce-nginx-eip",
-    instance=nginx_instance.id,
-    vpc=True,
-    tags={"Name": "ecommerce-nginx-eip"}
-)
-
 # Export Outputs
 pulumi.export("vpc_id", vpc.id)
 pulumi.export("public_subnet_1_id", public_subnet_1.id)
@@ -401,6 +394,6 @@ pulumi.export("microservices_instance_public_ip", microservices_instance.public_
 pulumi.export("database_instance_id", database_instance.id)
 pulumi.export("database_instance_private_ip", database_instance.private_ip)
 pulumi.export("nginx_instance_id", nginx_instance.id)
-pulumi.export("nginx_instance_public_ip", nginx_eip.public_ip)
+pulumi.export("nginx_instance_public_ip", nginx_instance.public_ip)
 pulumi.export("messaging_instance_id", messaging_instance.id)
 pulumi.export("messaging_instance_private_ip", messaging_instance.private_ip)
