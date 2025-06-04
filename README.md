@@ -94,6 +94,22 @@ Populate these files with the content provided in the previous responses. The ke
    - `microservices_instance_public_ip`
    - Private IPs for database and messaging instances
 
+
+
+```bash
+# Step 1: From your LOCAL machine, copy the key to microservices instance
+scp -i EcommerceKeyPair.pem EcommerceKeyPair.pem ubuntu@<microservices_public_ip>:/home/ubuntu/
+
+# Step 2: SSH into microservices instance  
+ssh -i EcommerceKeyPair.pem ubuntu@<microservices_public_ip>
+
+# Step 3: Set correct permissions on the copied key
+chmod 400 /home/ubuntu/EcommerceKeyPair.pem
+
+# Step 4: Now you can SSH to database instance
+ssh -i /home/ubuntu/EcommerceKeyPair.pem ubuntu@10.0.3.222
+```
+
 ### Step 4: Wait for Deployment Completion
 
 The user data scripts will automatically:
