@@ -1,1003 +1,367 @@
-# E-commerce Microservices: A Testing Scenario
+# E-commerce Microservices Deployment Guide
 
-Welcome to **E-commerce Site**, a modern e-commerce platform built with microservices. This guide tells the story of how our system handles real-world scenarios - from busy shopping days to unexpected service outages.
+This documentation provides comprehensive instructions for deploying the e-commerce microservices application on AWS infrastructure using Pulumi, followed by verification steps to ensure everything is working correctly.
 
-In this documentation, we will test 3 different scenarios:
+## Part 1: Deployment Process
 
-1. Order Processing Workflow with RabbitMQ
-2. Notification Service with Redis
-3. Kafka Integration
+### Prerequisites
 
-## The Setup
+1. **Local Environment Setup**
+   - Install Pulumi CLI
+   - Install AWS CLI and configure with appropriate credentials
+   - Install Python 3.8+
+   - Generate or use an existing EC2 key pair named "EcommerceKeyPair"
 
-Clone the repository:
+2. **Repository Preparation**
+   - Clone your e-commerce microservices repository
+   - Create the deployment directory structure as outlined below
+
+### Step 1: Create Deployment Files in Repository
+
+Create the following directory structure in your repository:
+
+```
+deploy/
+└── aws/
+    ├── docker-compose/
+    │   ├── database-compose.yml
+    │   ├── messaging-compose.yml
+    │   ├── microservices-compose.yml
+    │   └── nginx-compose.yml
+    ├── env/
+    │   ├── .env.database
+    │   ├── .env.messaging
+    │   ├── .env.microservices
+    │   └── .env.nginx
+    ├── config/
+    │   └── nginx/
+    │       └── default.conf
+    ├── scripts/
+    │   ├── common.sh
+    │   ├── setup-database.sh
+    │   ├── setup-messaging.sh
+    │   ├── setup-microservices.sh
+    │   └── setup-nginx.sh
+    └── deploy.sh
+```
+
+Populate these files with the content provided in the previous responses. The key files are:
+
+- Docker Compose files for each instance type
+- Environment templates with placeholders
+- Configuration templates (e.g., Nginx)
+- Deployment scripts
+
+### Step 2: Create Pulumi Project
+
+1. Create a new directory for your Pulumi project:
+   ```bash
+   mkdir ecommerce-infra && cd ecommerce-infra
+   ```
+
+2. Initialize a new Pulumi project:
+   ```bash
+   pulumi new aws-python
+   ```
+
+3. Replace the `__main__.py` content with the Pulumi code provided in the previous response.
+
+4. Update Mailtrap credentials in the Pulumi code:
+   ```python
+   # Update these values with your Mailtrap credentials
+   smtp_user = "your_mailtrap_username"
+   smtp_password = "your_mailtrap_password"
+   ```
+
+5. Ensure you have the EC2 key pair named "EcommerceKeyPair" in your AWS account:
+   - If not, create one through the AWS Console or CLI
+   - Download and securely store the private key (.pem file)
+
+### Step 3: Deploy the Infrastructure
+
+1. Preview the deployment:
+   ```bash
+   pulumi preview
+   ```
+
+2. Deploy the infrastructure:
+   ```bash
+   pulumi up
+   ```
+
+3. Note the outputs from the deployment, especially:
+   - `nginx_instance_public_ip`
+   - `microservices_instance_public_ip`
+   - Private IPs for database and messaging instances
+
+### Step 4: Wait for Deployment Completion
+
+The user data scripts will automatically:
+1. Install Docker and Docker Compose
+2. Clone your repository
+3. Run the appropriate deployment scripts for each instance
+4. Configure and start the services
+
+This process takes approximately 10-15 minutes to complete. You can monitor progress by SSH-ing into the instances.
+
+## Part 2: Verification Process
+
+Follow these steps to verify your deployment is working correctly.
+
+### Step 1: Verify SSH Access to Instances
+
+1. Connect to the Nginx instance:
+   ```bash
+   ssh -i EcommerceKeyPair.pem ubuntu@<nginx_instance_public_ip>
+   ```
+
+2. Connect to the Microservices instance:
+   ```bash
+   ssh -i EcommerceKeyPair.pem ubuntu@<microservices_instance_public_ip>
+   ```
+
+3. Connect to private instances through the Microservices instance:
+   ```bash
+   # From the microservices instance
+   ssh ubuntu@<database_instance_private_ip>
+   ssh ubuntu@<messaging_instance_private_ip>
+   ```
+
+### Step 2: Verify Docker Services on Each Instance
+
+#### Database Instance
+```bash
+ssh -i EcommerceKeyPair.pem ubuntu@<database_instance_private_ip>
+docker ps
+
+# Expected output:
+# Containers for MongoDB and PostgreSQL should be running
+```
+
+#### Messaging Instance
+```bash
+ssh -i EcommerceKeyPair.pem ubuntu@<messaging_instance_private_ip>
+docker ps
+
+# Expected output:
+# Containers for RabbitMQ, Redis, Kafka, and Zookeeper should be running
+```
+
+#### Microservices Instance
+```bash
+ssh -i EcommerceKeyPair.pem ubuntu@<microservices_instance_public_ip>
+docker ps
+
+# Expected output:
+# Containers for all five microservices should be running
+```
+
+#### Nginx Instance
+```bash
+ssh -i EcommerceKeyPair.pem ubuntu@<nginx_instance_public_ip>
+docker ps
+
+# Expected output:
+# Nginx container should be running
+```
+
+### Step 3: Check Container Logs
+
+Check logs for any errors or issues:
 
 ```bash
-git clone https://github.com/poridhioss/E-commerce-Microservices-with-Kafka.git
+# Example for checking product service logs on microservices instance
+docker logs product-service
+
+# Example for checking database logs
+docker logs mongodb-product
 ```
 
->**Note:** you have to change env variables of the notification service in order to test mail notifications. Here, we used `mailtrap.io` to test the mail notifications. So, create a free account on `mailtrap.io` and change the env variables in the `notification-service/.env` file. 
+### Step 4: Verify API Endpoints
 
-You have to change the `MAIL_USERNAME`, `MAIL_PASSWORD` variables in the `.env` file of the `notification-service` folder. You will get these credentials from `mailtrap.io` sandbox.
+Test the API endpoints through the Nginx gateway:
 
-Run the application using docker compose:
+1. Register a user:
+   ```bash
+   curl -X POST "http://<nginx_instance_public_ip>/api/v1/auth/register" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "email": "test@example.com",
+       "password": "Password123",
+       "first_name": "Test",
+       "last_name": "User",
+       "phone": "555-123-4567"
+     }'
+   ```
+
+2. Login to get an access token:
+   ```bash
+   curl -X POST "http://<nginx_instance_public_ip>/api/v1/auth/login" \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -d "username=test@example.com&password=Password123"
+   ```
+
+3. Create a product using the token:
+   ```bash
+   curl -X POST "http://<nginx_instance_public_ip>/api/v1/products/" \
+     -H "Authorization: Bearer <access_token>" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "name": "Test Product",
+       "description": "This is a test product",
+       "category": "Test",
+       "price": 99.99,
+       "quantity": 10
+     }'
+   ```
+
+4. Retrieve products:
+   ```bash
+   curl "http://<nginx_instance_public_ip>/api/v1/products/"
+   ```
+
+### Step 5: Verify Messaging Integration
+
+1. Check RabbitMQ Management Interface:
+   - Access http://<microservices_instance_public_ip>:15672
+   - Login with guest/guest
+   - Verify queues are created
+
+2. Check Kafka UI:
+   - Access http://<microservices_instance_public_ip>:8082
+   - Verify topics are created
+
+3. Test order creation and inventory interaction:
+   ```bash
+   # Create an order
+   curl -X POST "http://<nginx_instance_public_ip>/api/v1/orders/" \
+     -H "Authorization: Bearer <access_token>" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "user_id": "<user_id>",
+       "items": [
+         {
+           "product_id": "<product_id>",
+           "quantity": 1,
+           "price": 99.99
+         }
+       ],
+       "shipping_address": {
+         "line1": "123 Test St",
+         "city": "Test City",
+         "state": "TS",
+         "postal_code": "12345",
+         "country": "Testland"
+       }
+     }'
+   ```
+
+4. Verify the order was created and inventory was updated:
+   ```bash
+   # Check order status
+   curl "http://<nginx_instance_public_ip>/api/v1/orders/<order_id>" \
+     -H "Authorization: Bearer <access_token>"
+     
+   # Check inventory status
+   curl "http://<nginx_instance_public_ip>/api/v1/inventory/<product_id>" \
+     -H "Authorization: Bearer <access_token>"
+   ```
+
+### Step 6: Verify Notification Service
+
+1. Create a low-stock condition:
+   ```bash
+   # Update inventory to trigger low stock
+   curl -X PUT "http://<nginx_instance_public_ip>/api/v1/inventory/<product_id>" \
+     -H "Authorization: Bearer <access_token>" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "available_quantity": 3,
+       "reorder_threshold": 5
+     }'
+   ```
+
+2. Check email notifications:
+   - Login to your Mailtrap account
+   - Verify a low stock notification was received
+
+3. Test the notification service directly:
+   ```bash
+   curl -X POST "http://<nginx_instance_public_ip>/api/v1/notifications/test"
+   ```
+
+### Step 7: Check System Health
+
+Verify the health endpoints for all services:
 
 ```bash
-docker-compose up --build -d
+# Nginx health
+curl "http://<nginx_instance_public_ip>/health"
+
+# Service health checks
+curl "http://<nginx_instance_public_ip>/api/v1/products/health"
+curl "http://<nginx_instance_public_ip>/api/v1/orders/health"
+curl "http://<nginx_instance_public_ip>/api/v1/inventory/health"
+curl "http://<nginx_instance_public_ip>/api/v1/users/health"
+curl "http://<nginx_instance_public_ip>/api/v1/notifications/health"
 ```
 
-This will start all services including:
+## Troubleshooting Common Issues
 
-- Product Service (MongoDB)
-- Order Service (MongoDB)
-- Inventory Service (PostgreSQL)
-- User Service (PostgreSQL)
-- RabbitMQ Message Broker
-- Nginx API Gateway
-- Redis
-- Kafka
-- Notification Service (PostgreSQL)
+### Services Not Starting
 
-verify that all services are running:
+1. Check if Docker is running:
+   ```bash
+   systemctl status docker
+   ```
+
+2. Check deployment logs:
+   ```bash
+   cat /var/log/cloud-init-output.log
+   ```
+
+3. Check Docker Compose logs:
+   ```bash
+   cd /home/ubuntu/ecommerce/deploy/aws
+   docker-compose -f docker-compose/microservices-compose.yml logs
+   ```
+
+### Connectivity Issues
+
+1. Verify security group rules are correctly set up:
+   ```bash
+   # Check connectivity from microservices to database
+   telnet <database_instance_private_ip> 5432
+   telnet <database_instance_private_ip> 27017
+   
+   # Check connectivity from microservices to messaging
+   telnet <messaging_instance_private_ip> 5672
+   telnet <messaging_instance_private_ip> 6379
+   telnet <messaging_instance_private_ip> 29092
+   ```
+
+2. Check route tables and NAT gateway:
+   - Ensure private instances can access the internet for package installation
+
+### Microservices Communication Issues
+
+1. Check environment variables:
+   ```bash
+   docker exec product-service env | grep SERVICE_URL
+   ```
+
+2. Verify service discovery is working:
+   ```bash
+   # On microservices instance
+   cat /home/ubuntu/ecommerce/deploy/aws/env/.env.microservices.generated
+   ```
+
+## Clean Up
+
+To remove all AWS resources when done testing:
 
 ```bash
-docker-compose ps -a
+pulumi destroy
 ```
 
-Install `jq` to make JSON output more readable in the terminal:
-
-```bash
-apt-get update && apt-get install -y jq
-```
-
-# Order Processing Workflow with RabbitMQ
-
-In this documentation, we will describe the entire testing procedure through a story or scenario that could occur in a real-world setting.
-
-![alt text](https://raw.githubusercontent.com/poridhiEng/lab-asset/cebdaf0c344e65f11223da2f920bcbe67e1baf7e/E-commerce-with-kafka/images/rabbitmq-01.svg)
-
-![alt text](https://raw.githubusercontent.com/poridhiEng/lab-asset/cebdaf0c344e65f11223da2f920bcbe67e1baf7e/E-commerce-with-kafka/images/rabbitmq-02.svg)
-
-**RabbitMQ Dashboard**: Open http://localhost:15672 (guest/guest) to watch our message queues in action.
-
-## Chapter 1: A New Customer Arrives
-
-*Sarah visits the site for the first time. She needs to create an account and add her shipping address.*
-
-### Creating Sarah's Account
-```bash
-curl -X POST "http://localhost/api/v1/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "sarah@example.com",
-    "password": "Password123",
-    "first_name": "Sarah",
-    "last_name": "Johnson",
-    "phone": "555-123-4567"
-  }' | jq .
-```
-
-### Sarah Logs In
-
-Saving the authentication token:
-```bash
-curl -s -X POST "http://localhost/api/v1/auth/login" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=sarah@example.com&password=Password123" | jq .
-```
-
-Save the access_token for subsequent requests:
-```bash
-TOKEN="eyJhbGciOiJS..."  # Replace with the actual token from the response
-```
-
-Saving the user ID:
-```bash
-USER_ID=$(curl -s -X GET "http://localhost/api/v1/users/me" \
-  -H "Authorization: Bearer $TOKEN" | jq -r .id)
-```
-
-### Adding Her Shipping Address
-```bash
-curl -X POST "http://localhost/api/v1/users/me/addresses" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "line1": "456 Tech Street",
-    "line2": "Apt 12B",
-    "city": "San Francisco",
-    "state": "CA",
-    "postal_code": "94105",
-    "country": "USA",
-    "is_default": true
-  }' | jq .
-```
-
-## Chapter 2: Stocks Products
-
-### Adding the iPhone 15
-```bash
-curl -s -X POST "http://localhost/api/v1/products/" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "iPhone 15 Pro",
-    "description": "Latest Apple smartphone with advanced camera system",
-    "category": "Electronics",
-    "price": 999.99,
-    "quantity": 25
-  }' | jq .
-```
-
-```bash
-IPHONE_ID="iphone id" # Replace with the actual id from the response
-```
-
-### Adding AirPods
-```bash
-curl -s -X POST "http://localhost/api/v1/products/" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "AirPods Pro 2",
-    "description": "Wireless earbuds with active noise cancellation",
-    "category": "Audio",
-    "price": 249.99,
-    "quantity": 50
-  }' | jq .
-```
-
-```bash
-AIRPODS_ID="airpods id" # Replace with the actual id from the response
-```
-
-### Verifying Automatic Inventory Creation
-
-Check that inventory was automatically created for iPhone:
-```bash
-curl -s -X GET "http://localhost/api/v1/inventory/$IPHONE_ID" \
-  -H "Authorization: Bearer $TOKEN" | jq .
-```
-
-Check inventory for AirPods:
-```bash
-curl -s -X GET "http://localhost/api/v1/inventory/$AIRPODS_ID" \
-  -H "Authorization: Bearer $TOKEN" | jq .
-```
-
-**🎯 Scenario Point**: Notice how inventory records are created automatically with smart thresholds (10% of stock, minimum 5 units).
-
-## Chapter 3: Sarah's Shopping Experience
-
-*Sarah browses products and decides to make her first purchase.*
-
-### Browsing Available Products
-
-Sarah sees all available products:
-```bash
-curl -s -X GET "http://localhost/api/v1/products/" \
-  -H "Authorization: Bearer $TOKEN" | jq .
-```
-
-She filters by Electronics category:
-```bash
-curl -s -X GET "http://localhost/api/v1/products/?category=Electronics" \
-  -H "Authorization: Bearer $TOKEN" | jq .
-```
-
-### Sarah Places Her Order
-
-Sarah orders an iPhone and AirPods:
-```bash
-curl -s -X POST "http://localhost/api/v1/orders/" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "'$USER_ID'",
-    "items": [
-      {
-        "product_id": "'$IPHONE_ID'",
-        "quantity": 1,
-        "price": 999.99
-      },
-      {
-        "product_id": "'$AIRPODS_ID'",
-        "quantity": 2,
-        "price": 249.99
-      }
-    ],
-    "shipping_address": {
-      "line1": "456 Tech Street",
-      "line2": "Apt 12B",
-      "city": "San Francisco",
-      "state": "CA",
-      "postal_code": "94105",
-      "country": "USA"
-    }
-  }' | jq .
-``` 
-
-Save the order id for subsequent requests:
-```bash
-ORDER_ID="order id" # Replace with the actual id from the response
-```
-
-### Behind the Scenes: RabbitMQ Magic
-
-Check RabbitMQ queues to see the asynchronous processing:
-```bash
-curl -s -u guest:guest http://localhost:15672/api/queues | \
-  jq '.[] | select(.name | contains("order") or contains("inventory")) | {name: .name, total_published: (.message_stats.publish // 0)}'
-```
-
-### Verifying Inventory Reservation
-
-Check that inventory was automatically reserved:
-```bash
-curl -s -X GET "http://localhost/api/v1/inventory/$IPHONE_ID" \
-  -H "Authorization: Bearer $TOKEN" | jq .
-```
-
-```bash
-curl -s -X GET "http://localhost/api/v1/inventory/$AIRPODS_ID" \
-  -H "Authorization: Bearer $TOKEN" | jq .
-```
-
-**🎯 Story Point**: The order is created instantly (status: "pending"), while inventory is reserved asynchronously via RabbitMQ. Sarah gets immediate confirmation!
-
-## Chapter 4: Processing Sarah's Order
-
-### Updating Order Status
-
-```bash
-curl -X PUT "http://localhost/api/v1/orders/$ORDER_ID/status" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"status": "paid"}' | jq '{id: ._id, status: .status, updated_at: .updated_at}'
-```
-
-## Chapter 5: The Cancellation Crisis
-
-*Sarah also wants to order for her friend, but then changes her mind. This tests our cancellation system.*
-
-### Places an Order for her friend
-
-Orders an iPhone for her friend:
-```bash
-curl -s -X POST "http://localhost/api/v1/orders/" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "'$USER_ID'",
-    "items": [
-      {
-        "product_id": "'$IPHONE_ID'",
-        "quantity": 1,
-        "price": 999.99
-      }
-    ],
-    "shipping_address": {
-      "line1": "456 Tech Street",
-      "city": "San Francisco",
-      "state": "CA", 
-      "postal_code": "94105",
-      "country": "USA"
-    }
-  }' | jq .
-```
-
-Save the order id for subsequent requests:
-```bash
-FRIEND_ORDER_ID="order id" # Replace with the actual id from the response
-```
-
-### Inventory Before Cancellation
-
-```bash
-curl -s -X GET "http://localhost/api/v1/inventory/$IPHONE_ID" \
-  -H "Authorization: Bearer $TOKEN" | jq .
-```
-
-### Cancels the Order
-
-```bash
-curl -X DELETE "http://localhost/api/v1/orders/$FRIEND_ORDER_ID" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-Check that RabbitMQ processed the cancellation:
-```bash
-curl -s -u guest:guest http://localhost:15672/api/queues | \
-  jq '.[] | select(.name | contains("order") or contains("inventory")) | {name: .name, total_published: (.message_stats.publish // 0)}'
-```
-
-Check that inventory was released:
-```bash
-curl -s -X GET "http://localhost/api/v1/inventory/$IPHONE_ID" \
-  -H "Authorization: Bearer $TOKEN" | jq .
-```
-
-**🎯 Story Point**: Inventory is automatically released via RabbitMQ when orders are cancelled, ensuring accurate stock levels.
-
-## Chapter 6: Black Friday Disaster (Service Outage Test)
-
-*It's Black Friday! Suddenly, the inventory service crashes due to high load. But our system keeps running...*
-
-### The Crash Happens
-
-Inventory service crashes during peak traffic:
-```bash
-docker-compose stop inventory-service
-```
-
-### Customers Keep Shopping
-
-Customer places order while service is down:
-```bash
-curl -s -X POST "http://localhost/api/v1/orders/" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "'$USER_ID'",
-    "items": [
-      {
-        "product_id": "'$AIRPODS_ID'",
-        "quantity": 1,
-        "price": 249.99
-      }
-    ],
-    "shipping_address": {
-      "line1": "456 Tech Street",
-      "city": "San Francisco",
-      "state": "CA",
-      "postal_code": "94105", 
-      "country": "USA"
-    }
-  }' | jq .
-```
-
-Save the order id for subsequent requests:
-```bash
-BLACKFRIDAY_ORDER_ID="order id" # Replace with the actual id from the response
-```
-
-### Messages Queue Up
-
-Check that messages are waiting in queue:
-```bash
-curl -s -u guest:guest http://localhost:15672/api/queues/%2F/order_created | \
-  jq '{messages_waiting: .messages, consumers: .consumers}'
-```
-
-![alt text](https://raw.githubusercontent.com/poridhiEng/lab-asset/cebdaf0c344e65f11223da2f920bcbe67e1baf7e/E-commerce-with-kafka/images/image-00.png)
-
-### Customer Tries to Cancel During Outage
-
-Customer decides to cancel during the outage:
-```bash
-curl -X DELETE "http://localhost/api/v1/orders/$BLACKFRIDAY_ORDER_ID" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-Check that cancellation message is also queued:
-```bash
-curl -s -u guest:guest http://localhost:15672/api/queues/%2F/inventory_release | \
-  jq '{messages_waiting: .messages}'
-```
-
-![alt text](https://raw.githubusercontent.com/poridhiEng/lab-asset/cebdaf0c344e65f11223da2f920bcbe67e1baf7e/E-commerce-with-kafka/images/image-01.png)
-
-### Service Recovery
-
-DevOps team fixes the service:
-```bash
-docker-compose start inventory-service
-```
-
-Check that all messages were processed:
-```bash
-curl -s -u guest:guest http://localhost:15672/api/queues | \
-  jq '.[] | select(.name | contains("order") or contains("inventory")) | {name: .name, messages_waiting: .messages}'
-```
-
-![alt text](https://raw.githubusercontent.com/poridhiEng/lab-asset/cebdaf0c344e65f11223da2f920bcbe67e1baf7e/E-commerce-with-kafka/images/image-02.png)
-
-Verify order was processed and then cancelled:
-```bash
-curl -s -X GET "http://localhost/api/v1/orders/$BLACKFRIDAY_ORDER_ID" \
-  -H "Authorization: Bearer $TOKEN" | jq .
-```
-
-**🎯 Story Point**: Even during service outages, orders are accepted and queued. When services recover, everything processes automatically!
-
-## Chapter 7: The Final Inventory Report
-
-*At the end of the day, let's see how our system performed.*
-
-### Order Summary
-
-View all orders from today:
-```bash
-curl -s -X GET "http://localhost/api/v1/orders/" -H "Authorization: Bearer $TOKEN" | \
-  jq '.[] | {id: ._id, status: .status, total_price: .total_price}'
-```
-
-### Inventory Status
-
-Check final inventory levels:
-```bash
-curl -s -X GET "http://localhost/api/v1/inventory/" -H "Authorization: Bearer $TOKEN" | \
-  jq '.[] | {product_id: .product_id, available: .available_quantity, reserved: .reserved_quantity, threshold: .reorder_threshold}'
-```
-
-### RabbitMQ Performance Report
-
-See total message throughput:
-```bash
-curl -s -u guest:guest http://localhost:15672/api/queues | \
-  jq '.[] | select(.name | contains("order") or contains("inventory")) | {
-    queue: .name,
-    total_processed: (.message_stats.deliver // 0),
-    currently_waiting: .messages
-  }'
-```
-
-## The Story's Lessons
-
-### ✅ **What We Proved**
-
-1. **Seamless User Experience**: Orders are accepted instantly while processing happens asynchronously
-2. **Automatic Inventory Management**: Stock levels update automatically via RabbitMQ
-3. **Service Resilience**: System continues working even during service outages
-4. **Data Consistency**: All operations maintain inventory accuracy
-5. **Zero Message Loss**: RabbitMQ ensures reliable message delivery
-
-### 📊 **Business Impact**
-
-- **Customer Satisfaction**: No failed orders due to temporary service issues
-- **Operational Efficiency**: Automatic inventory tracking and threshold alerts
-- **Scalability**: System handles traffic spikes gracefully
-- **Reliability**: 99.9% uptime even with individual service failures
-
-# E-commerce Notification System Testing Guide
-
-This comprehensive guide will walk you through testing the **E-commerce Notification System** that automatically monitors inventory levels and sends email alerts when products run low. The system uses **Redis pub/sub** for real-time communication and **SMTP** for email delivery.
-
-## System Architecture
-
-![alt text](https://raw.githubusercontent.com/poridhiEng/lab-asset/cebdaf0c344e65f11223da2f920bcbe67e1baf7e/E-commerce-with-kafka/images/Notification-service.svg)
-
-
-## Testing Scenarios
-
-### Scenario 1: Direct Email Testing
-
-**Purpose**: Verify the email delivery system works independently
-
-**When to Use**: 
-- Initial system setup
-- Email configuration troubleshooting
-- SMTP connectivity verification
-
-**Steps**:
-
-Send test email:
-
-```bash
-curl -X POST "http://localhost/api/v1/notifications/test" | jq . 
-```
-
-**Expected Response**:
-
-```json
-{
-  "message": "Test notification created",
-  "notification_id": 1,
-  "email_sent": true,
-  "admin_email": "admin@example.com"
-}
-```
-
-**Success Indicators**:
-- `email_sent: true` in response
-- Email appears in Mailtrap inbox
-- Subject: "Test Notification"
-
-![alt text](https://raw.githubusercontent.com/poridhiEng/lab-asset/cebdaf0c344e65f11223da2f920bcbe67e1baf7e/E-commerce-with-kafka/images/image.png)
-
-### Scenario 2: Product Creation Flow
-
-**Purpose**: Test automatic inventory creation and threshold setup
-
-**When to Use**:
-- New product onboarding
-- Inventory service integration testing
-
-**Steps**:
-
-1. Create a test product:
-
-    ```bash
-    curl -X POST "http://localhost/api/v1/products/" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "Smart Watch",
-        "description": "Waterproof fitness tracker with heart rate monitoring",
-        "category": "Electronics",
-        "price": 299.99,
-        "quantity": 15
-      }' | jq .
-    ```
-
-2. Extract product ID from response:
-
-    ```bash
-    PRODUCT_ID=$(curl -s "http://localhost/api/v1/products/" | \
-      jq -r '.[] | select(.name=="Smart Watch") | ._id')
-    echo "Product ID: $PRODUCT_ID"
-    ```
-
-3. Verify automatic inventory creation:
-
-    ```bash
-    curl -s "http://localhost/api/v1/inventory/$PRODUCT_ID" | jq .
-    ```
-
-**Expected Results**:
-- Product created successfully
-- Inventory record auto-generated
-- Default reorder threshold set (minimum 5 or 10% of initial quantity)
-
-### Scenario 3: Direct Inventory Update Trigger
-
-**Purpose**: Test low stock detection via manual inventory adjustment
-
-**When to Use**:
-- Inventory management scenarios
-- Stock adjustment workflows
-- Immediate notification triggers
-
-**Steps**:
-
-1. Update inventory below threshold to trigger notification:
-
-    ```bash
-    curl -X PUT "http://localhost/api/v1/inventory/$PRODUCT_ID" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "available_quantity": 3,
-        "reorder_threshold": 8
-      }' | jq .
-    ```
-
-2. Wait for notification processing:
-
-    ```bash
-    sleep 10
-    ```
-
-3. Verify notification was created:
-
-    ```bash
-    curl -s "http://localhost/api/v1/notifications/?limit=3" | jq '.[0]'
-    ```
-
-    ![alt text](https://raw.githubusercontent.com/poridhiEng/lab-asset/cebdaf0c344e65f11223da2f920bcbe67e1baf7e/E-commerce-with-kafka/images/image-1.png)
-
-**Success Flow**:
-- Inventory updated successfully
-- Low stock condition detected (3 < 8)
-- Redis message published
-- Notification service receives message
-- Email sent to admin
-- Database record created
-
-**📧 Expected Email Content**:
-- Subject: "Low Stock Alert: Smart Watch"
-- Product details with current quantity (3) and threshold (8)
-
-![alt text](https://raw.githubusercontent.com/poridhiEng/lab-asset/cebdaf0c344e65f11223da2f920bcbe67e1baf7e/E-commerce-with-kafka/images/image-2.png)
-
-### Scenario 4: Order-Triggered Notification Flow
-**Purpose**: Test complete e-commerce workflow from order to notification
-
-**When to Use**:
-- End-to-end system testing
-- Customer order impact simulation
-- Multi-service integration verification
-
-**Setup**:
-
-1. Create another test product with specific threshold:
-
-    ```bash
-    curl -X POST "http://localhost/api/v1/products/" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "Wireless Noise-Cancelling Headphones",
-        "description": "Premium headphones with active noise cancellation",
-        "category": "Audio",
-        "price": 149.99,
-        "quantity": 12
-      }' | jq .
-    ```
-
-2. Get the new product ID:
-
-    ```bash
-    ORDER_PRODUCT_ID=$(curl -s "http://localhost/api/v1/products/" | \
-      jq -r '.[] | select(.name=="Wireless Noise-Cancelling Headphones") | ._id')
-    echo "Order Product ID: $ORDER_PRODUCT_ID"
-    ```
-
-**User Registration & Order Process**:
-
-3. Register a test user:
-
-    ```bash
-    curl -X POST "http://localhost/api/v1/auth/register" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "email": "order-test@example.com",
-        "password": "OrderTest123",
-        "first_name": "Order",
-        "last_name": "Tester",
-        "phone": "555-ORDER-TEST"
-      }' | jq .
-    ```
-
-4. Login to get authentication token:
-
-    ```bash
-    TOKEN=$(curl -s -X POST "http://localhost/api/v1/auth/login" \
-      -H "Content-Type: application/x-www-form-urlencoded" \
-      -d "username=order-test@example.com&password=OrderTest123" | \
-      jq -r .access_token)
-    ```
-
-5. Get user ID for order creation:
-
-    ```bash
-    USER_ID=$(curl -s -X GET "http://localhost/api/v1/users/me" \
-      -H "Authorization: Bearer $TOKEN" | jq -r .id)
-    ```
-
-6. Place order that will trigger low stock (12 - 8 = 4, which is < 5 threshold):
-
-    ```bash
-    curl -X POST "http://localhost/api/v1/orders/" \
-      -H "Authorization: Bearer $TOKEN" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "user_id": "'$USER_ID'",
-        "items": [
-          {
-            "product_id": "'$ORDER_PRODUCT_ID'",
-            "quantity": 8,
-            "price": 149.99
-          }
-        ],
-        "shipping_address": {
-          "line1": "123 Order Test Lane",
-          "city": "Notification City",
-          "state": "NC",
-          "postal_code": "12345",
-          "country": "Testland"
-        }
-      }' | jq .
-    ```
-
-**Verification**:
-
-7. Wait for order processing and notification:
-
-    ```bash
-    sleep 15
-    ```
-
-8. Check inventory was reduced:
-
-    ```bash
-    curl -s "http://localhost/api/v1/inventory/$ORDER_PRODUCT_ID" | jq .
-    ```
-
-9. Verify notification was triggered:
-
-    ```bash
-    curl -s "http://localhost/api/v1/notifications/?limit=5" | \
-      jq '.[] | select(.type=="low_stock") | {id, subject, status, created_at}'
-    ```
-
-    ![alt text](https://raw.githubusercontent.com/poridhiEng/lab-asset/cebdaf0c344e65f11223da2f920bcbe67e1baf7e/E-commerce-with-kafka/images/image-3.png)
-
-10. Check Email Notifications:
-
-    ![alt text](https://raw.githubusercontent.com/poridhiEng/lab-asset/cebdaf0c344e65f11223da2f920bcbe67e1baf7e/E-commerce-with-kafka/images/image-4.png)
-
-    
-
-**Complete Order Flow**:
-
-1. **Order Placed** → Order Service creates order
-2. **Inventory Reserved** → Inventory Service reduces available stock
-3. **Low Stock Detected** → Available quantity (4) < threshold (5)
-4. **Redis Message** → Inventory publishes low stock event
-5. **Notification Triggered** → Notification Service processes message
-6. **Email Sent** → Admin receives low stock alert
-7. **Database Updated** → Notification record stored
-
-### Scenario 5: Direct Redis Messaging
-
-**Purpose**: Test Redis pub/sub communication directly
-
-**When to Use**:
-- Debugging message queue issues
-- Testing notification service isolation
-- Verifying Redis connectivity
-
-**Steps**:
-
-1. Send direct Redis message:
-
-    ```bash
-    docker-compose exec redis redis-cli PUBLISH inventory:low-stock '{
-      "type": "low_stock",
-      "product_id": "redis-direct-test",
-      "product_name": "Direct Redis Test Product",
-      "current_quantity": 2,
-      "threshold": 5,
-      "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)'"
-    }'
-    ```
-
-2. Wait for processing:
-
-    ```bash
-    sleep 5
-    ```
-
-3. Check notification was created:
-
-    ```bash
-    curl -s "http://localhost/api/v1/notifications/?limit=3" | \
-      jq '.[] | select(.data.product_id=="redis-direct-test")'
-    ```
-
-**Success Indicators**:
-- Redis returns `(integer) 1` (message published to 1 subscriber)
-- Notification appears in database
-- Email sent to admin
-
-![alt text](https://raw.githubusercontent.com/poridhiEng/lab-asset/cebdaf0c344e65f11223da2f920bcbe67e1baf7e/E-commerce-with-kafka/images/image-5.png)
-
-# Kafka Testing Workflow Documentation
-
-This document provides comprehensive testing procedures for the Kafka-based event streaming integration between Product Service and Inventory Service in the e-commerce microservices architecture.
-
-## Overview
-
-The Kafka integration enables **asynchronous communication** between Product and Inventory services, ensuring:
-- **Service Decoupling**: Product service operates independently of inventory service
-- **Event-Driven Architecture**: Product lifecycle events trigger inventory operations
-- **Resilience**: Events are queued and processed even when services are temporarily unavailable
-- **Scalability**: Multiple consumers can process events in parallel
-
-## Kafka Integration Architecture
-
-![alt text](https://raw.githubusercontent.com/poridhiEng/lab-asset/cebdaf0c344e65f11223da2f920bcbe67e1baf7e/E-commerce-with-kafka/images/Kafka-integration.svg)
-
-## Testing Procedures for Kafka Integration
-
-### 1. Basic Event Flow Testing
-
-Test the core Kafka integration with a new product:
-
-```bash
-curl -X POST "http://localhost/api/v1/products/" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Kafka Test Product",
-    "description": "Testing Kafka integration",
-    "category": "Test",
-    "price": 99.99,
-    "quantity": 25
-  }' | jq .
-```
-
-**Expected Output:**
-```json
-{
-  "name": "Kafka Test Product",
-  "description": "Testing Kafka integration", 
-  "category": "Test",
-  "price": 99.99,
-  "quantity": 25,
-  "_id": "ObjectId_string"
-}
-```
-
-### 2. Event Processing Verification
-
-Verify the event was processed and inventory was created:
-
-- Extract product ID from the API response:
-
-    ```bash
-    PRODUCT_ID=$(curl -s "http://localhost/api/v1/products/" | \
-      jq -r '.[] | select(.name=="Kafka Test Product") | ._id')
-    echo "Product ID: $PRODUCT_ID"
-    ```
-
-- Check if inventory was automatically created:
-
-    ```bash
-    curl -s "http://localhost/api/v1/inventory/$PRODUCT_ID" | jq .
-    ```
-
-    **Expected Output:**
-    ```json
-    {
-      "id": 1,
-      "product_id": "ObjectId_string",
-      "available_quantity": 25,
-      "reserved_quantity": 0,
-      "reorder_threshold": 5,
-      "created_at": "2025-05-30T16:00:00Z",
-      "updated_at": "2025-05-30T16:00:00Z"
-    }
-    ```
-
-### 3. Kafka Infrastructure Verification
-
-Verify Kafka is running and topics are available:
-
-```bash
-docker-compose exec kafka kafka-topics --bootstrap-server localhost:9092 --list
-```
-
-**Expected Output:**
-```
-__consumer_offsets
-product.events
-inventory.events
-```
-
-### 4. Event Message Inspection
-
-Examine the actual Kafka messages to verify event structure:
-
-```bash
-docker-compose exec kafka kafka-console-consumer \
-  --bootstrap-server localhost:9092 \
-  --topic product.events \
-  --from-beginning \
-  --max-messages 5 | jq .
-```
-
-**Expected Output:**
-```json
-{
-  "metadata": {
-    "event_id": "uuid",
-    "event_type": "product.created",
-    "timestamp": "2025-05-30T16:00:00Z",
-    "source": "product-service",
-    "version": "1.0"
-  },
-  "data": {
-    "product_id": "ObjectId_string", 
-    "name": "Kafka Test Product",
-    "description": "Testing Kafka integration",
-    "category": "Test",
-    "price": 99.99,
-    "initial_quantity": 25,
-    "reorder_threshold": 5
-  },
-  "_kafka_metadata": {
-    "topic": "product.events",
-    "producer_client_id": "product-service",
-    "key": "ObjectId_string"
-  }
-}
-```
-
-### 5. Kafka UI Monitoring
-
-Access the Kafka UI for visual monitoring:
-
-```bash
-echo "Open Kafka UI: http://localhost:8082"
-```
-
-Navigate to:
-- **Topics** → `product.events` → View messages
-- **Consumer Groups** → `inventory-consumer-group` → Monitor lag
-
-### 6. Service Decoupling Test
-
-Test that services can operate independently:
-
-- Stop inventory service temporarily:
-
-
-    ```bash
-    docker-compose stop inventory-service
-    ```
-
-- Create a product while inventory service is down:
-
-    ```bash
-    curl -X POST "http://localhost/api/v1/products/" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "Decoupled Test Product",
-        "description": "Testing service decoupling", 
-        "category": "Test",
-        "price": 149.99,
-        "quantity": 15
-      }' | jq .
-    ```
-
-    **Expected Behavior:**
-    - Product creation should succeed
-    - Event should be queued in Kafka
-    - No inventory record should exist yet
-
-### 7. Event Replay and Recovery
-
-Test event processing after service recovery:
-
-- Stop inventory service temporarily:
-
-    ```bash
-    docker-compose start inventory-service
-    ```
-
-- Get the product ID of the decoupled product:
-
-    ```bash
-    PRODUCT_ID_2=$(curl -s "http://localhost/api/v1/products/" | \
-      jq -r '.[] | select(.name=="Decoupled Test Product") | ._id')
-    echo "Second Product ID: $PRODUCT_ID_2"
-    ```
-
-- Check if inventory was created:
-
-    ```bash
-    curl -s "http://localhost/api/v1/inventory/$PRODUCT_ID_2" | jq .
-    ```
-
-    **Expected Output:**
-    Inventory should be created automatically once the service restarts and processes the queued event.
-
-### 8. Consumer Group Analysis
-
-Monitor Kafka consumer group status:
-
-```bash
-docker-compose exec kafka kafka-consumer-groups \
-  --bootstrap-server localhost:9092 \
-  --describe \
-  --group inventory-consumer-group
-```
-
-**Expected Output:**
-```
-GROUP                    TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG
-inventory-consumer-group product.events  0          6               6               0
-```
-
-- **LAG = 0**: All messages processed
-- **LAG > 0**: Messages waiting to be processed
-
-## Success Criteria
-
-The Kafka integration is working correctly when:
-
-1. ✅ **Product creation triggers events** - Messages appear in `product.events` topic
-2. ✅ **Events are consumed** - Consumer group shows LAG = 0
-3. ✅ **Inventory auto-creation** - Inventory records created automatically
-4. ✅ **Service decoupling** - Product service works independently
-5. ✅ **Event replay** - Queued events processed after service restart
-6. ✅ **No data loss** - All events eventually processed
-7. ✅ **Integration compatibility** - Existing features (notifications) still work
+This will terminate all instances and remove the associated networking resources.
