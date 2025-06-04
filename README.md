@@ -127,6 +127,12 @@ Follow these steps to verify your deployment is working correctly.
    ssh ubuntu@<messaging_instance_private_ip>
    ```
 
+4. SSH into the instance and check logs: 
+
+    ```bash
+    cat /var/log/cloud-init-output.log
+    ```
+
 ### Step 2: Verify Docker Services on Each Instance
 
 #### Database Instance
