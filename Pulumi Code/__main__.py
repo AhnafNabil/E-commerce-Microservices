@@ -6,7 +6,7 @@ config = pulumi.Config()
 git_repo_url = "https://github.com/AhnafNabil/E-commerce-Microservices-AWS.git"
 region = "ap-southeast-1"
 availability_zones = ["ap-southeast-1a", "ap-southeast-1b"]
-ami_id = "ami-01811d4912b4ccb26"
+ami_id = "ami-0de6806735058f3dc"
 
 # Mailtrap credentials
 smtp_user = "8f17fc1a376da4"
