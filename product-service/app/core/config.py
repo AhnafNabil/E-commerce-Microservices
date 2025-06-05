@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     MONGODB_DB: str = "product_db"
     
     # Kafka settings - Read directly from environment with fallback
-    KAFKA_BOOTSTRAP_SERVERS: str = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+    KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
     KAFKA_CLIENT_ID: str = "product-service"
     
     # JWT Auth settings (for testing/development)
