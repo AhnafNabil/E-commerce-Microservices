@@ -42,23 +42,26 @@ wait_for_service $MICROSERVICES_HOST 8004 "Notification Service"
 
 # Create Nginx configuration with proper IP replacement
 log "Creating Nginx configuration..."
-replace_placeholders config/nginx/default.conf config/nginx/default.conf.generated \
+replace_placeholders config/nginx/default.conf config/nginx/default.conf.tmp \
   "MICROSERVICES_HOST" "$MICROSERVICES_HOST"
 
 # Verify the generated config has real IPs, not placeholders
-if grep -q '${MICROSERVICES_HOST}' config/nginx/default.conf.generated; then
+if grep -q '${MICROSERVICES_HOST}' config/nginx/default.conf.tmp; then
   log "ERROR: Placeholder not replaced in nginx config" "$RED"
   exit 1
 fi
 
 # Verify the generated config has the correct IP
-if ! grep -q "$MICROSERVICES_HOST:8000" config/nginx/default.conf.generated; then
+if ! grep -q "$MICROSERVICES_HOST:8000" config/nginx/default.conf.tmp; then
   log "ERROR: Microservices IP not found in nginx config" "$RED"
   exit 1
 fi
 
-log "Generated Nginx configuration:"
-head -20 config/nginx/default.conf.generated
+# Overwrite the original config file with the processed one
+mv config/nginx/default.conf.tmp config/nginx/default.conf
+
+log "Final Nginx configuration:"
+head -20 config/nginx/default.conf
 
 # Export variable for docker-compose
 export MICROSERVICES_HOST=$MICROSERVICES_HOST
