@@ -359,10 +359,16 @@ echo "MICROSERVICES_HOST set to: $MICROSERVICES_HOST"
 # Add microservices host to /etc/hosts
 echo "{microservices_ip} microservices-host" | tee -a /etc/hosts
 
-# Wait for microservices to be ready
-sleep 240
+# Create environment file for persistence
+cat > /home/ubuntu/microservices_ip.env << 'EOF'
+export MICROSERVICES_HOST="{microservices_ip}"
+EOF
+chown ubuntu:ubuntu /home/ubuntu/microservices_ip.env
 
-# Run nginx setup
+# Wait for microservices to be ready
+sleep 300
+
+# Run nginx setup with explicit environment variable
 cd /home/ubuntu/ecommerce/deploy/aws
 chmod +x deploy.sh
 chmod +x scripts/*.sh
