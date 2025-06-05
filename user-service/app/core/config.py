@@ -15,13 +15,13 @@ class Settings(BaseSettings):
     DATABASE_URL: PostgresDsn
     
     # JWT settings
-    JWT_SECRET_KEY: str
+    JWT_SECRET_KEY: str = "your-super-secret-key-here-change-it-in-production"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # Security
-    SECURITY_PASSWORD_SALT: str
+    SECURITY_PASSWORD_SALT: str = "your-password-salt-change-it-in-production"
     SECURITY_PASSWORD_HASH: str = "bcrypt"
     
     class Config:
