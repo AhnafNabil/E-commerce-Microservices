@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     MONGODB_URI: str = "mongodb://localhost:27017"
     MONGODB_DB: str = "product_db"
     
-    # Kafka settings - FIXED: Use Docker-friendly default
-    KAFKA_BOOTSTRAP_SERVERS: str = "kafka:29092"  # Changed from localhost:9092
+    # Kafka settings - Read directly from environment with fallback
+    KAFKA_BOOTSTRAP_SERVERS: str = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
     KAFKA_CLIENT_ID: str = "product-service"
     
     # JWT Auth settings (for testing/development)
