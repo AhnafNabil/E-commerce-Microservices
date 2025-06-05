@@ -22,6 +22,9 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=${MESSAGING_HOST}:29092
+      - KAFKA_CLIENT_ID=product-service
     env_file:
       - ../env/.env.microservices.generated
     restart: unless-stopped
@@ -55,6 +58,10 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8002:8002"
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=${MESSAGING_HOST}:29092
+      - KAFKA_CLIENT_ID=inventory-service
+      - KAFKA_CONSUMER_GROUP=inventory-consumer-group
     env_file:
       - ../env/.env.microservices.generated
     restart: unless-stopped
