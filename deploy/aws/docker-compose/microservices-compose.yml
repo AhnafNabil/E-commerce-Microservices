@@ -10,6 +10,7 @@ services:
     env_file:
       - ../env/.env.microservices.generated
     restart: unless-stopped
+    network_mode: host  # Use host networking
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8003/health || exit 1"]
       interval: 30s
@@ -25,6 +26,7 @@ services:
     env_file:
       - ../env/.env.microservices.generated
     restart: unless-stopped
+    network_mode: host  # Use host networking
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 30s
@@ -40,6 +42,7 @@ services:
     env_file:
       - ../env/.env.microservices.generated
     restart: unless-stopped
+    network_mode: host  # Use host networking
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8001/health || exit 1"]
       interval: 30s
@@ -58,6 +61,7 @@ services:
     env_file:
       - ../env/.env.microservices.generated
     restart: unless-stopped
+    network_mode: host  # Use host networking
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8002/health || exit 1"]
       interval: 30s
@@ -75,6 +79,7 @@ services:
     env_file:
       - ../env/.env.microservices.generated
     restart: unless-stopped
+    network_mode: host  # Use host networking
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8004/health || exit 1"]
       interval: 30s
