@@ -730,7 +730,7 @@ BULK_ORDER=$(curl -s -X POST "http://$NGINX_IP/api/v1/orders/" \
   -d "{
     \"user_id\": \"$USER_ID\",
     \"items\": [
-      {\"product_id\": \"$WATCH_ID\", \"quantity\": 5, \"price\": 179.99}
+      {\"product_id\": \"$AIRPODS_ID\", \"quantity\": 45, \"price\": 249.99}
     ],
     \"shipping_address\": {
       \"line1\": \"456 Tech Street\",
@@ -744,11 +744,17 @@ BULK_ORDER=$(curl -s -X POST "http://$NGINX_IP/api/v1/orders/" \
 BULK_ORDER_ID=$(echo "$BULK_ORDER" | jq -r '._id')
 ```
 
-Smart watch inventory after bulk order:
+Airpods inventory after bulk order:
 
 ```bash
 curl -s "http://$NGINX_IP/api/v1/inventory/" | \
-  jq '.[] | select(.product_id == "'$WATCH_ID'") | {product_id, available_quantity, reserved_quantity, reorder_threshold}'
+  jq '.[] | select(.product_id == "'$AIRPODS_ID'") | {
+    product_id, 
+    available_quantity, 
+    reserved_quantity, 
+    reorder_threshold,
+    status: (if .available_quantity <= .reorder_threshold then "🚨 LOW STOCK" else "✅ OK" end)
+  }'
 ```
 
 Verify notifications were sent:
@@ -801,6 +807,9 @@ ssh -i EcommerceKeyPair.pem ubuntu@$MICROSERVICES_IP \
 ```bash
 curl -s "http://$NGINX_IP/api/v1/orders/$OUTAGE_ORDER_ID" -H "Authorization: Bearer $TOKEN" | jq .
 ```
+
+You will also get the email notification for the low stock alert as the inventory of the Airpods is less than the reorder threshold.
+
 
 ## Conclusion
 
