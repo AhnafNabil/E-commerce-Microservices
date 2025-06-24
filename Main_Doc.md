@@ -11,6 +11,10 @@ In this lab, we will:
 - Keep the database and messaging system in private subnet and the microservices in public subnet.
 - Test the system by following the steps mentioned below.
 
+## System Architecture
+
+![alt text](./images/system-arch.svg)
+
 ## AWS Infrastructure
 
 ![alt text](./images/AWS-Infra-Micro.svg)
