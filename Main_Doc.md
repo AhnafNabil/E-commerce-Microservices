@@ -2,6 +2,19 @@
 
 This is a testing guide for the e-commerce microservices architecture. Here we will be deploying the microservices to AWS in 4 different ec2 instances. We will go step by step right from the infrastructure creation using pulumi to the testing of the system.
 
+## Lab Overview
+
+In this lab, we will:
+
+- Create AWS infrastructure using Pulumi.
+- Deploy the microservices to AWS in 4 different ec2 instances.
+- Keep the database and messaging system in private subnet and the microservices in public subnet.
+- Test the system by following the steps mentioned below.
+
+## AWS Infrastructure
+
+![alt text](./images/AWS-Infra-Micro.svg)
+
 ## Configure AWS CLI and Set Up a Pulumi Project
 
 ### Configure AWS CLI
