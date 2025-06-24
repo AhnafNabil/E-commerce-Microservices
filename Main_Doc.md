@@ -556,7 +556,7 @@ export MICROSERVICES_IP="YOUR_MICROSERVICES_PUBLIC_IP"
 Check if the nginx instance is accessible by using the following command:
 
 ```bash
-curl -s "http://$NGINX_IP/health"
+curl -s "http://$NGINX_IP/health" | jq .
 ```
 
 ### User Registration & Authentication
@@ -651,7 +651,7 @@ AIRPODS_RESPONSE=$(curl -s -X POST "http://$NGINX_IP/api/v1/products/" \
 AIRPODS_ID=$(echo "$AIRPODS_RESPONSE" | jq -r '._id')
 ```
 
-#### Adding Smart Watch (Low Stock Item):
+#### Adding Smart Watch:
 
 ```bash
 WATCH_RESPONSE=$(curl -s -X POST "http://$NGINX_IP/api/v1/products/" \
@@ -680,21 +680,21 @@ curl -s "http://$NGINX_IP/api/v1/inventory/" | jq '.[] | {product_id, available_
 ORDER_RESPONSE=$(curl -s -X POST "http://$NGINX_IP/api/v1/orders/" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{
-    \"user_id\": \"$USER_ID\",
-    \"items\": [
-      {\"product_id\": \"$IPHONE_ID\", \"quantity\": 1, \"price\": 999.99},
-      {\"product_id\": \"$AIRPODS_ID\", \"quantity\": 2, \"price\": 249.99}
+  -d '{
+    "user_id": "'$USER_ID'",
+    "items": [
+      {"product_id": "'$IPHONE_ID'", "quantity": 1, "price": 999.99},
+      {"product_id": "'$AIRPODS_ID'", "quantity": 2, "price": 249.99}
     ],
-    \"shipping_address\": {
-      \"line1\": \"456 Tech Street\",
-      \"line2\": \"Apt 12B\",
-      \"city\": \"San Francisco\",
-      \"state\": \"CA\",
-      \"postal_code\": \"94105\",
-      \"country\": \"USA\"
+    "shipping_address": {
+      "line1": "456 Tech Street",
+      "line2": "Apt 12B",
+      "city": "San Francisco",
+      "state": "CA",
+      "postal_code": "94105",
+      "country": "USA"
     }
-  }")
+  }')
 
 ORDER_ID=$(echo "$ORDER_RESPONSE" | jq -r '._id')
 ```
@@ -720,6 +720,8 @@ curl -s "http://$NGINX_IP/api/v1/inventory/" | \
 curl -s -X POST "http://$NGINX_IP/api/v1/notifications/test" | jq .
 ```
 
+Check the mailtrap inbox for the email notification:
+
 #### Trigger low stock alert (Method 1 - Direct Update):
 
 ```bash
@@ -739,6 +741,8 @@ curl -s "http://$NGINX_IP/api/v1/notifications/?limit=5" | \
   jq '.[] | select(.type=="low_stock") | {subject, status, created_at}'
 ```
 
+Check the mailtrap inbox for the email notification:
+
 #### Trigger low stock alert (Method 2 - Order-Induced):
 
 Creating bulk order to trigger automatic low stock alert:
@@ -747,19 +751,19 @@ Creating bulk order to trigger automatic low stock alert:
 BULK_ORDER=$(curl -s -X POST "http://$NGINX_IP/api/v1/orders/" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{
-    \"user_id\": \"$USER_ID\",
-    \"items\": [
-      {\"product_id\": \"$AIRPODS_ID\", \"quantity\": 45, \"price\": 249.99}
+  -d '{
+    "user_id": "'$USER_ID'",
+    "items": [
+      {"product_id": "'$AIRPODS_ID'", "quantity": 45, "price": 249.99}
     ],
-    \"shipping_address\": {
-      \"line1\": \"456 Tech Street\",
-      \"city\": \"San Francisco\",
-      \"state\": \"CA\",
-      \"postal_code\": \"94105\",
-      \"country\": \"USA\"
+    "shipping_address": {
+      "line1": "456 Tech Street",
+      "city": "San Francisco",
+      "state": "CA",
+      "postal_code": "94105",
+      "country": "USA"
     }
-  }")
+  }')
 
 BULK_ORDER_ID=$(echo "$BULK_ORDER" | jq -r '._id')
 ```
@@ -783,6 +787,8 @@ Verify notifications were sent:
 curl -s "http://$NGINX_IP/api/v1/notifications/" | jq .
 ```
 
+Check the mailtrap inbox for the email notification:
+
 ### Black Friday Crisis - Service Resilience Testing
 
 *It's Black Friday! Suddenly, the inventory service crashes due to high load. But our system keeps running...*
@@ -790,7 +796,7 @@ curl -s "http://$NGINX_IP/api/v1/notifications/" | jq .
 #### The crash happens:
 
 ```bash
-ssh -i EcommerceKeyPair.pem ubuntu@$MICROSERVICES_IP \
+ssh -i ecommerce-infra/EcommerceKeyPair.pem ubuntu@$MICROSERVICES_IP \
   "cd /home/ubuntu/ecommerce/deploy/aws && docker-compose -f docker-compose/microservices-compose.yml stop inventory-service"
 ```
 
@@ -800,17 +806,17 @@ ssh -i EcommerceKeyPair.pem ubuntu@$MICROSERVICES_IP \
 OUTAGE_ORDER=$(curl -s -X POST "http://$NGINX_IP/api/v1/orders/" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{
-    \"user_id\": \"$USER_ID\",
-    \"items\": [{\"product_id\": \"$AIRPODS_ID\", \"quantity\": 1, \"price\": 249.99}],
-    \"shipping_address\": {
-      \"line1\": \"456 Tech Street\",
-      \"city\": \"San Francisco\",
-      \"state\": \"CA\",
-      \"postal_code\": \"94105\",
-      \"country\": \"USA\"
+  -d '{
+    "user_id": "'$USER_ID'",
+    "items": [{"product_id": "'$AIRPODS_ID'", "quantity": 1, "price": 249.99}],
+    "shipping_address": {
+      "line1": "456 Tech Street",
+      "city": "San Francisco",
+      "state": "CA",
+      "postal_code": "94105",
+      "country": "USA"
     }
-  }")
+  }')
 
 OUTAGE_ORDER_ID=$(echo "$OUTAGE_ORDER" | jq -r '._id')
 ```
@@ -818,7 +824,7 @@ OUTAGE_ORDER_ID=$(echo "$OUTAGE_ORDER" | jq -r '._id')
 #### DevOps team fixes the service:
 
 ```bash
-ssh -i EcommerceKeyPair.pem ubuntu@$MICROSERVICES_IP \
+ssh -i ecommerce-infra/EcommerceKeyPair.pem ubuntu@$MICROSERVICES_IP \
   "cd /home/ubuntu/ecommerce/deploy/aws && docker-compose -f docker-compose/microservices-compose.yml start inventory-service"
 ```
 

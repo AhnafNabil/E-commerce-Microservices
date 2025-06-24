@@ -3,14 +3,14 @@ import pulumi_aws as aws
 
 # Configuration
 config = pulumi.Config()
-git_repo_url = "https://github.com/AhnafNabil/E-commerce-Microservices-AWS.git"
+git_repo_url = "https://github.com/poridhioss/E-commerce-Microservices-AWS.git"
 region = "ap-southeast-1"
 availability_zones = ["ap-southeast-1a", "ap-southeast-1b"]
 ami_id = "ami-0497a974f8d5dcef8"
 
 # Mailtrap credentials
-smtp_user = "8f17fc1a376da4"
-smtp_password = "afb5060d93cdaf"
+smtp_user = "Your SMTP User"
+smtp_password = "Your SMTP Password"
 
 # Base user data script with common functions
 base_user_data = """#!/bin/bash
@@ -189,8 +189,9 @@ microservices_sg = aws.ec2.SecurityGroup("ecommerce-microservices-sg",
     description="Security group for microservices instance",
     ingress=[
         {"protocol": "tcp", "from_port": 22, "to_port": 22, "cidr_blocks": ["0.0.0.0/0"]},
-        {"protocol": "tcp", "from_port": 8000, "to_port": 8004, "security_groups": [nginx_sg.id]},
-        {"protocol": "tcp", "from_port": 8082, "to_port": 8082, "security_groups": [nginx_sg.id]}
+        {"protocol": "tcp", "from_port": 8000, "to_port": 8004, "cidr_blocks": ["10.0.0.0/16"]},
+        {"protocol": "tcp", "from_port": 8082, "to_port": 8082, "cidr_blocks": ["10.0.0.0/16"]},
+        {"protocol": "icmp", "from_port": -1, "to_port": -1, "cidr_blocks": ["10.0.0.0/16"]}
     ],
     egress=[
         {"protocol": "-1", "from_port": 0, "to_port": 0, "cidr_blocks": ["0.0.0.0/0"]}
