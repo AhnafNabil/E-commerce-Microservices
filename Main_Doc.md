@@ -506,7 +506,7 @@ Here, you will be asked to enter the `access key` and `secret key`. You will fin
 
     This will create the infrastructure in AWS.
 
-![alt text](image.png)
+![alt text](./images/image.png)
 
 > **Note:** The `pulumi up` command will take some time to complete. After the infrastructure is created, you will have to wait for 10-15 minutes for the instances to be fully ready and the containers to be deployed.
 
@@ -532,6 +532,10 @@ Here, you will be asked to enter the `access key` and `secret key`. You will fin
     docker ps
     ```
 
+    ![alt text](./images/image-1.png)
+
+    ![alt text](./images/image-2.png)
+
     > **Note:** If you see the nginx container is running and healthy, then all the containers should be running and healthy as the nginx container depends on the microservices container.
 
 4. **You can also check the logs of the script that is running on the each instance by using the following command:**
@@ -539,6 +543,8 @@ Here, you will be asked to enter the `access key` and `secret key`. You will fin
     ```bash
     cat /var/log/cloud-init-output.log
     ```
+
+    ![alt text](./images/image-3.png)
 
 ## Testing the System
 
@@ -558,6 +564,8 @@ Check if the nginx instance is accessible by using the following command:
 ```bash
 curl -s "http://$NGINX_IP/health" | jq .
 ```
+
+![alt text](./images/image-4.png)
 
 ### User Registration & Authentication
 
@@ -673,6 +681,8 @@ WATCH_ID=$(echo "$WATCH_RESPONSE" | jq -r '._id')
 curl -s "http://$NGINX_IP/api/v1/inventory/" | jq '.[] | {product_id, available_quantity, reorder_threshold}'
 ```
 
+![alt text](./images/image-5.png)
+
 ### Order Processing & RabbitMQ
 
 #### Sarah places her order:
@@ -712,6 +722,8 @@ curl -s "http://$NGINX_IP/api/v1/inventory/" | \
   jq '.[] | select(.product_id == "'$IPHONE_ID'" or .product_id == "'$AIRPODS_ID'") | {product_id, available_quantity, reserved_quantity}'
 ```
 
+![alt text](./images/image-6.png)
+
 ### Redis Integration & Email Alerts
 
 ####  Test the notification system:
@@ -720,7 +732,11 @@ curl -s "http://$NGINX_IP/api/v1/inventory/" | \
 curl -s -X POST "http://$NGINX_IP/api/v1/notifications/test" | jq .
 ```
 
+![alt text](./images/image-7.png)
+
 Check the mailtrap inbox for the email notification:
+
+![alt text](./images/image-8.png)
 
 #### Trigger low stock alert (Method 1 - Direct Update):
 
@@ -741,7 +757,11 @@ curl -s "http://$NGINX_IP/api/v1/notifications/?limit=5" | \
   jq '.[] | select(.type=="low_stock") | {subject, status, created_at}'
 ```
 
+![alt text](./images/image-9.png)
+
 Check the mailtrap inbox for the email notification:
+
+![alt text](./images/image-10.png)
 
 #### Trigger low stock alert (Method 2 - Order-Induced):
 
@@ -781,13 +801,19 @@ curl -s "http://$NGINX_IP/api/v1/inventory/" | \
   }'
 ```
 
+![alt text](./images/image-11.png)
+
 Verify notifications were sent:
 
 ```bash
 curl -s "http://$NGINX_IP/api/v1/notifications/" | jq .
 ```
 
+![alt text](./images/image-12.png)
+
 Check the mailtrap inbox for the email notification:
+
+![alt text](./images/image-13.png)
 
 ### Black Friday Crisis - Service Resilience Testing
 
@@ -833,6 +859,8 @@ ssh -i ecommerce-infra/EcommerceKeyPair.pem ubuntu@$MICROSERVICES_IP \
 ```bash
 curl -s "http://$NGINX_IP/api/v1/orders/$OUTAGE_ORDER_ID" -H "Authorization: Bearer $TOKEN" | jq .
 ```
+
+![alt text](./images/image-14.png)
 
 You will also get the email notification for the low stock alert as the inventory of the Airpods is less than the reorder threshold.
 
