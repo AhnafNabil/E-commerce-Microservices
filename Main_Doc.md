@@ -266,8 +266,9 @@ Here, you will be asked to enter the `access key` and `secret key`. You will fin
         description="Security group for microservices instance",
         ingress=[
             {"protocol": "tcp", "from_port": 22, "to_port": 22, "cidr_blocks": ["0.0.0.0/0"]},
-            {"protocol": "tcp", "from_port": 8000, "to_port": 8004, "security_groups": [nginx_sg.id]},
-            {"protocol": "tcp", "from_port": 8082, "to_port": 8082, "security_groups": [nginx_sg.id]}
+            {"protocol": "tcp", "from_port": 8000, "to_port": 8004, "cidr_blocks": ["10.0.0.0/16"]},
+            {"protocol": "tcp", "from_port": 8082, "to_port": 8082, "cidr_blocks": ["10.0.0.0/16"]},
+            {"protocol": "icmp", "from_port": -1, "to_port": -1, "cidr_blocks": ["10.0.0.0/16"]}
         ],
         egress=[
             {"protocol": "-1", "from_port": 0, "to_port": 0, "cidr_blocks": ["0.0.0.0/0"]}
@@ -504,6 +505,8 @@ Here, you will be asked to enter the `access key` and `secret key`. You will fin
     ```
 
     This will create the infrastructure in AWS.
+
+![alt text](image.png)
 
 > **Note:** The `pulumi up` command will take some time to complete. After the infrastructure is created, you will have to wait for 10-15 minutes for the instances to be fully ready and the containers to be deployed.
 
